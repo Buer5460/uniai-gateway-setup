@@ -58,20 +58,22 @@ function ReadPageText($url) {
 }
 $edge = @("${env:ProgramFiles(x86)}\Microsoft\Edge\Application\msedge.exe", "$env:ProgramFiles\Microsoft\Edge\Application\msedge.exe") | Where-Object {Test-Path $_} | Select-Object -First 1
 if (-not $edge) { throw 'No CI browser' }
-$profile = Join-Path $env:RUNNER_TEMP ('uni-browser-' + [guid]::NewGuid().ToString('N'))
-$env:BROWSER = '"' + $edge + '" --headless=new --remote-debugging-address=127.0.0.1 --remote-debugging-port=9222 --no-first-run --user-data-dir="' + $profile + '" %s &'
 $overview = [string][char]0x603B + [char]0x89C8
 $scan = [string][char]0x626B + [char]0x63CF + [char]0x672C + [char]0x673A
 $ok = $false
 $lastErrorType = ''; $text = ''
 try {
     for ($round=1; $round -le 2; $round++) {
+        $profile = Join-Path $env:RUNNER_TEMP ('uni-browser-' + [guid]::NewGuid().ToString('N'))
+        $debugPort = 9221 + $round
+        $debugUrl = 'http://127.0.0.1:' + $debugPort + '/json'
+        $env:BROWSER = '"' + $edge + '" --headless=new --remote-debugging-address=127.0.0.1 --remote-debugging-port=' + $debugPort + ' --no-first-run --user-data-dir="' + $profile + '" %s &'
         $before = if (Test-Path $keyPath) { (Get-FileHash $keyPath).Hash } else { '' }
         Start-Process -FilePath (Join-Path $InstallDir 'UniAI.exe') | Out-Null
         $ready = $false; $changed = $false
         for ($i=0; $i -lt 45; $i++) {
             try {
-                $tabs = @((Request 'http://127.0.0.1:9222/json').data) | Where-Object { $_.type -eq 'page' -and $_.url -like ($base + '/console*') }
+                $tabs = @((Request $debugUrl).data) | Where-Object { $_.type -eq 'page' -and $_.url -like ($base + '/console*') }
                 foreach ($tab in $tabs) {
                     [string]$text = ReadPageText $tab.webSocketDebuggerUrl
                     if ($text.Contains($overview) -and $text.Contains($scan)) { $ready=$true; break }
@@ -82,7 +84,7 @@ try {
             } catch { $lastErrorType = $_.Exception.GetType().FullName }
             Start-Sleep -Seconds 2
         }
-        Check ('browser_render_round_' + $round) $ready
+        Check ('new_browser_render_round_' + $round) $ready
         Check ('existing_cache_updated_round_' + $round) $changed
         $key = (Get-Content $keyPath -Raw -Encoding UTF8).Trim()
         Check ('cached_session_valid_after_browser_round_' + $round) ((Request ($base + '/api/dashboard') 'GET' $key).status -eq 200)
@@ -95,7 +97,7 @@ try {
     $ok = $true
 } finally {
     $safeText = [regex]::Replace($text,'(?i)(?:gw_|sk-|vk_|eyJ)[A-Za-z0-9_.-]{10,}','[REDACTED]')
-    @{success=$ok;checks=$checks;os=[Environment]::OSVersion.VersionString;source_commit=$env:GITHUB_SHA;scope='real packaged launcher to headless Edge; two browser openings; existing cache sync; negative authorization';model_accounts=$false;last_error_type=$lastErrorType;visible_text=$safeText.Substring(0,[Math]::Min(1800,$safeText.Length))} | ConvertTo-Json -Depth 8 | Set-Content $EvidencePath -Encoding UTF8
+    @{success=$ok;checks=$checks;os=[Environment]::OSVersion.VersionString;source_commit=$env:GITHUB_SHA;scope='real packaged launcher to two fresh headless Edge profiles; existing cache sync; negative authorization';model_accounts=$false;last_error_type=$lastErrorType;visible_text=$safeText.Substring(0,[Math]::Min(1800,$safeText.Length))} | ConvertTo-Json -Depth 8 | Set-Content $EvidencePath -Encoding UTF8
     Write-Host ('Browser check outcome: ' + $ok + '; last exception type: ' + $lastErrorType)
     Write-Host ($safeText.Substring(0,[Math]::Min(1200,$safeText.Length)))
 }
