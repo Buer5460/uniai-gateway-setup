@@ -12,17 +12,21 @@ def main(argv=None):
 
     def reliable_shortcut(link,target,working_dir,description,arguments='',icon=None):
         # Native Unicode COM API; no WScript, pywin32 or external development tool.
-        from ctypes import wintypes
-        ole=ctypes.OleDLL('ole32')
+        class WT:
+            DWORD=ctypes.c_uint32
+            WORD=ctypes.c_uint16
+            LPCWSTR=ctypes.c_wchar_p
+            BOOL=ctypes.c_int32
+        ole=ctypes.WinDLL('ole32')
         class GUID(ctypes.Structure):
-            _fields_=[('d1',wintypes.DWORD),('d2',wintypes.WORD),('d3',wintypes.WORD),('d4',ctypes.c_ubyte*8)]
+            _fields_=[('d1',WT.DWORD),('d2',WT.WORD),('d3',WT.WORD),('d4',ctypes.c_ubyte*8)]
         HRESULT=ctypes.c_long
         VP=ctypes.c_void_p
         PVP=ctypes.POINTER(VP)
-        ole.CoInitializeEx.argtypes=[VP,wintypes.DWORD];ole.CoInitializeEx.restype=HRESULT
+        ole.CoInitializeEx.argtypes=[VP,WT.DWORD];ole.CoInitializeEx.restype=HRESULT
         ole.CoUninitialize.argtypes=[];ole.CoUninitialize.restype=None
-        ole.CLSIDFromString.argtypes=[wintypes.LPCWSTR,ctypes.POINTER(GUID)];ole.CLSIDFromString.restype=HRESULT
-        ole.CoCreateInstance.argtypes=[ctypes.POINTER(GUID),VP,wintypes.DWORD,ctypes.POINTER(GUID),PVP];ole.CoCreateInstance.restype=HRESULT
+        ole.CLSIDFromString.argtypes=[WT.LPCWSTR,ctypes.POINTER(GUID)];ole.CLSIDFromString.restype=HRESULT
+        ole.CoCreateInstance.argtypes=[ctypes.POINTER(GUID),VP,WT.DWORD,ctypes.POINTER(GUID),PVP];ole.CoCreateInstance.restype=HRESULT
         def check(hr):
             if hr<0: raise OSError('Windows COM HRESULT 0x%08x'%(hr & 0xffffffff))
         def guid(text):
@@ -43,13 +47,13 @@ def main(argv=None):
             target=Path(target).resolve()
             if not target.is_file(): raise FileNotFoundError('Shortcut target is missing: '+str(target))
             check(ole.CoCreateInstance(ctypes.byref(clsid),None,1,ctypes.byref(iid),ctypes.byref(shell)))
-            call(shell,20,[wintypes.LPCWSTR],str(target))
-            call(shell,9,[wintypes.LPCWSTR],str(working_dir))
-            call(shell,7,[wintypes.LPCWSTR],str(description))
-            call(shell,11,[wintypes.LPCWSTR],str(arguments or ''))
-            if icon: call(shell,17,[wintypes.LPCWSTR,ctypes.c_int],str(icon),0)
+            call(shell,20,[WT.LPCWSTR],str(target))
+            call(shell,9,[WT.LPCWSTR],str(working_dir))
+            call(shell,7,[WT.LPCWSTR],str(description))
+            call(shell,11,[WT.LPCWSTR],str(arguments or ''))
+            if icon: call(shell,17,[WT.LPCWSTR,ctypes.c_int],str(icon),0)
             call(shell,0,[ctypes.POINTER(GUID),PVP],ctypes.byref(iid_file),ctypes.byref(persist))
-            call(persist,6,[wintypes.LPCWSTR,wintypes.BOOL],str(link),True)
+            call(persist,6,[WT.LPCWSTR,WT.BOOL],str(link),True)
             if not link.is_file(): raise OSError('Windows did not save the shortcut')
             print('Unicode shortcut created: '+str(link),file=log)
             return True
