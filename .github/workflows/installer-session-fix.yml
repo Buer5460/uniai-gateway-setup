@@ -37,7 +37,9 @@ jobs:
           $generated=Join-Path $repo 'tools\verify_fix2_generated.ps1'
           [IO.File]::WriteAllText($generated,([IO.File]::ReadAllText($original).Replace('installer-fix.1','installer-fix.2')),[Text.Encoding]::UTF8)
           & $generated
-          $target=Join-Path $env:LOCALAPPDATA 'UniAI Gateway'
+          $target=Join-Path $env:LOCALAPPDATA 'UniAI Browser Test'
+          $fixed=Join-Path $repo 'out\UniAI-Setup-0.8.0-installer-fix.2-windows-x64.exe'
+          & (Join-Path $repo 'install.ps1') -InstallDir $target -PackagePath $fixed -PackageSha256 (Get-FileHash $fixed -Algorithm SHA256).Hash -NoOpen
           $browserScript=Join-Path $repo 'tools\verify_browser.ps1'
           $tokens=$null;$parseErrors=$null
           [Management.Automation.Language.Parser]::ParseFile($browserScript,[ref]$tokens,[ref]$parseErrors)|Out-Null
