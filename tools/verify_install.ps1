@@ -31,15 +31,17 @@ try {
     $window=$null
     for($i=0;$i -lt 30;$i++) {
         Start-Sleep 1
-        $window=Get-Process -ErrorAction SilentlyContinue | Where-Object { $_.ProcessName -like 'UniAI-Setup-0.8.0-installer-fix*' -and $_.MainWindowHandle -ne 0 } | Select-Object -First 1
+        $window=Get-Process -ErrorAction SilentlyContinue | Where-Object { $_.ProcessName -like 'UniAI-Setup-0.8.0-installer-fix*' -and $_.MainWindowHandle -ne 0 -and $_.MainWindowTitle -like 'UniAI Gateway*' -and $_.MainWindowTitle -notmatch 'error' } | Select-Object -First 1
         if($window) { break }
     }
-    Case 'fixed_gui_window_visible' ([bool]$window) $(if($window){$window.MainWindowTitle}else{'No native window'})
+    Case 'fixed_gui_wizard_visible_not_error_dialog' ([bool]$window) $(if($window){$window.MainWindowTitle}else{'No native wizard; an error dialog does not pass'})
     $window.CloseMainWindow() | Out-Null
     $p.WaitForExit(15000) | Out-Null
     $target=Join-Path $env:LOCALAPPDATA 'UniAI Gateway'
     & (Join-Path $repo 'install.ps1') -InstallDir $target -PackagePath $fixed -PackageSha256 $sha -NoOpen
     Case 'fixed_installer_runtime_and_assets' (Test-Path (Join-Path $target 'install.json')) 'Installer, runtime health and console asset checks, not mocks.'
+    $desktop=Join-Path $env:USERPROFILE 'Desktop\UniAI Gateway.lnk'
+    Case 'desktop_shortcut_created_with_unicode_spaces' (Test-Path -LiteralPath $desktop) 'Actual .lnk in isolated Unicode profile.'
     & (Join-Path $repo 'install.ps1') -InstallDir $target -PackagePath $fixed -PackageSha256 $sha -NoOpen
     Case 'rerun_preserves_installation' $true 'Reuses existing receipt; does not overwrite configuration.'
     $headless=Start-Process -FilePath (Join-Path $target 'UniAI.exe') -ArgumentList '--headless' -PassThru
