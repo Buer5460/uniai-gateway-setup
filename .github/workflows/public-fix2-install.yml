@@ -1,0 +1,79 @@
+name: Verify public fix2 installation
+on:
+  push:
+    paths:
+      - .github/workflows/public-fix2-install.yml
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  install:
+    runs-on: windows-2022
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+      - name: Run public command without build tools and check the actual browser it opens
+        shell: powershell
+        run: |
+          $ErrorActionPreference='Stop'
+          $repo=$PWD.Path
+          $out=Join-Path $repo 'public-evidence'
+          New-Item -ItemType Directory -Force $out | Out-Null
+          $root=Join-Path $env:RUNNER_TEMP ('UniAI-'+[char]0x5168+[char]0x65B0+' public user')
+          $env:USERPROFILE=Join-Path $root 'profile';$env:HOME=$env:USERPROFILE
+          $env:LOCALAPPDATA=Join-Path $env:USERPROFILE 'AppData\Local'
+          $env:APPDATA=Join-Path $env:USERPROFILE 'AppData\Roaming'
+          $env:TEMP=Join-Path $root 'temp';$env:TMP=$env:TEMP
+          foreach($d in @($env:LOCALAPPDATA,$env:APPDATA,$env:TEMP,(Join-Path $env:USERPROFILE 'Desktop'))){New-Item -ItemType Directory -Force $d | Out-Null}
+          Remove-Item Env:PYTHONHOME,Env:PYTHONPATH,Env:TCL_LIBRARY,Env:TK_LIBRARY -ErrorAction SilentlyContinue
+          $env:PATH="$env:SystemRoot\System32;$env:SystemRoot;$env:SystemRoot\System32\WindowsPowerShell\v1.0"
+          $checks=[Collections.Generic.List[object]]::new()
+          function Check($name,$ok){$checks.Add(@{name=$name;passed=[bool]$ok});Write-Host ($name+': '+$ok);if(-not $ok){throw ('FAILED '+$name)}}
+          $browserTest=Join-Path $repo 'tools\verify_browser.ps1'
+          $tokens=$null;$parseErrors=$null
+          $ast=[Management.Automation.Language.Parser]::ParseFile($browserTest,[ref]$tokens,[ref]$parseErrors)
+          if($parseErrors.Count){throw 'Browser fixture parse error'}
+          foreach($function in $ast.FindAll({param($n) $n -is [Management.Automation.Language.FunctionDefinitionAst] -and $n.Name -in @('Request','ReadPageText')},$true)){
+            . ([scriptblock]::Create($function.Extent.Text))
+          }
+          $edge=@("${env:ProgramFiles(x86)}\Microsoft\Edge\Application\msedge.exe","$env:ProgramFiles\Microsoft\Edge\Application\msedge.exe") | Where-Object {Test-Path $_} | Select-Object -First 1
+          if(-not $edge){throw 'CI browser unavailable'}
+          $browserProfile=Join-Path $root 'public-browser'
+          $env:BROWSER='"'+$edge+'" --headless=new --remote-debugging-address=127.0.0.1 --remote-debugging-port=9225 --no-first-run --user-data-dir="'+$browserProfile+'" %s &'
+          Set-Location $root
+          $success=$false
+          try{
+            Check 'no_python_node_git_on_path' (-not(Get-Command python,node,git -ErrorAction SilentlyContinue))
+            # Exact user-facing command: public network, no local package override.
+            $ErrorActionPreference='Stop'; [Net.ServicePointManager]::SecurityProtocol=[Net.SecurityProtocolType]::Tls12; & ([scriptblock]::Create((Invoke-WebRequest -UseBasicParsing -TimeoutSec 60 -Uri 'https://raw.githubusercontent.com/Buer5460/uniai-gateway-setup/5c100abdc21734206286e2d31c67ba7644c7bdd4/install.ps1').Content))
+            $target=Join-Path $env:LOCALAPPDATA 'UniAI Gateway'
+            Check 'public_command_created_installation' (Test-Path (Join-Path $target 'install.json'))
+            $config=Get-Content (Join-Path $target 'install.json') -Raw -Encoding UTF8 | ConvertFrom-Json
+            $base='http://127.0.0.1:'+$config.port
+            $overview=[string][char]0x603B+[char]0x89C8
+            $scan=[string][char]0x626B+[char]0x63CF+[char]0x672C+[char]0x673A
+            $ready=$false
+            for($i=0;$i -lt 45;$i++){
+              try{
+                $tabs=@((Request 'http://127.0.0.1:9225/json').data) | Where-Object {$_.type -eq 'page' -and $_.url -like ($base+'/console*')}
+                foreach($tab in $tabs){[string]$text=ReadPageText $tab.webSocketDebuggerUrl;if($text.Contains($overview) -and $text.Contains($scan)){$ready=$true;break}}
+              }catch{}
+              if($ready){break};Start-Sleep 2
+            }
+            Check 'public_command_opened_rendered_console' $ready
+            $key=(Get-Content (Join-Path $target 'data\run\launcher-admin.key') -Raw -Encoding UTF8).Trim()
+            Check 'launcher_cache_remains_authorized' ((Request ($base+'/api/dashboard') 'GET' $key).status -eq 200)
+            & $browserTest -InstallDir $target -EvidencePath (Join-Path $out 'repeat-browser.json')
+            $success=$true
+          }finally{
+            @{success=$success;checks=$checks;os=[Environment]::OSVersion.VersionString;test='exact public command; fresh hosted Windows VM; isolated Unicode profile; system-only PATH; actual launcher browser';bootstrap_commit='5c100abdc21734206286e2d31c67ba7644c7bdd4';installer_sha256='8209f31d7e7f312f20922d124a7f97c818874c5b330c84f462060ae73c5ee586';windows10_11_physical_machine_tested=$false;model_accounts=$false} | ConvertTo-Json -Depth 8 | Set-Content (Join-Path $out 'public-command-result.json') -Encoding UTF8
+            $logs=Join-Path $env:LOCALAPPDATA 'UniAI Installer\logs'
+            if(Test-Path $logs){Get-ChildItem $logs -Filter '*.log' | ForEach-Object {Copy-Item $_.FullName $out}}
+          }
+      - name: Save evidence without accounts, keys or browser profiles
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: public-fix2-installation
+          path: public-evidence/
+          retention-days: 14
