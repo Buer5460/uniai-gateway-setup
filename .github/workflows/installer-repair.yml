@@ -2,13 +2,15 @@ name: Installer repair verification
 on:
   push:
     paths:
-      - tools/repair_installer.py
-      - tools/verify_install.ps1
+      - tools/**
       - install.ps1
       - .github/workflows/installer-repair.yml
   workflow_dispatch:
 permissions:
   contents: write
+concurrency:
+  group: installer-repair-${{ github.ref }}
+  cancel-in-progress: true
 jobs:
   verify:
     runs-on: windows-2022
@@ -46,5 +48,5 @@ jobs:
         run: |
           gh release view v0.8.0-installer-fix.1 --repo $env:GITHUB_REPOSITORY 2>$null
           if ($LASTEXITCODE -eq 0) { Write-Host 'Release already exists; not overwriting verified assets.'; exit 0 }
-          gh release create v0.8.0-installer-fix.1 --repo $env:GITHUB_REPOSITORY --prerelease --target $env:GITHUB_SHA --title 'UniAI 0.8.0 - installer entry repair 1' --notes 'Repairs the no-argument setup wizard. Core payload unchanged. Actual Windows Server 2022 fresh-runner test with isolated profile and no Python/Node/Git on PATH. This is NOT a claim of validation on every blank Windows 10/11 system. Unsigned: do not bypass Windows security policies. See verification.json.' out/UniAI-Setup-0.8.0-installer-fix.1-windows-x64.exe out/UniAI-Setup-0.8.0-installer-fix.1-windows-x64.json out/verification.json
+          gh release create v0.8.0-installer-fix.1 --repo $env:GITHUB_REPOSITORY --prerelease --target $env:GITHUB_SHA --title 'UniAI 0.8.0 - installer entry repair 1' --notes 'Repairs the no-argument setup wizard and Unicode shortcut creation. Core payload unchanged. Actual Windows Server 2022 fresh-runner test with isolated profile and no Python/Node/Git on PATH. This is NOT a claim of validation on every blank Windows 10/11 system. Unsigned: do not bypass Windows security policies. See verification.json.' out/UniAI-Setup-0.8.0-installer-fix.1-windows-x64.exe out/UniAI-Setup-0.8.0-installer-fix.1-windows-x64.json out/verification.json
           if ($LASTEXITCODE -ne 0) { throw 'Release publication failed' }
