@@ -37,7 +37,6 @@ jobs:
           $ok=$false
           try {
             Check 'no_python_node_git_commands' (-not(Get-Command python,node,git -ErrorAction SilentlyContinue))
-            # This is the actual user-facing command, with no local package override.
             $ErrorActionPreference='Stop'; [Net.ServicePointManager]::SecurityProtocol=[Net.SecurityProtocolType]::Tls12; & ([scriptblock]::Create((Invoke-WebRequest -UseBasicParsing -TimeoutSec 60 -Uri 'https://raw.githubusercontent.com/Buer5460/uniai-gateway-setup/49dcf97aa63865d86825a116aeb6d7d93d51203f/install.ps1').Content))
             $target=Join-Path $env:LOCALAPPDATA 'UniAI Gateway'
             Check 'public_command_created_installation' (Test-Path (Join-Path $target 'install.json'))
@@ -47,31 +46,41 @@ jobs:
             for($i=0;$i -lt 90 -and -not(Test-Path $keyPath);$i++){Start-Sleep 1}
             Check 'default_launcher_claimed_local_console' (Test-Path $keyPath)
             $key=(Get-Content $keyPath -Raw -Encoding UTF8).Trim()
-            $health=JsonRequest 'GET' ($base+'/health') ''
-            Check 'gateway_identity_healthy' ($health.service -eq 'uniai-gateway')
-            $dashboard=JsonRequest 'GET' ($base+'/api/dashboard') $key
-            Check 'authenticated_dashboard_response' ($null -ne $dashboard)
+            Check 'gateway_identity_healthy' ((JsonRequest 'GET' ($base+'/health') '').service -eq 'uniai-gateway')
+            Check 'authenticated_dashboard_response' ($null -ne (JsonRequest 'GET' ($base+'/api/dashboard') $key))
+            # Let the default launcher finish its own one-time browser handoff first.
+            Start-Sleep -Seconds 8
             $issued=JsonRequest 'POST' ($base+'/api/bootstrap/issue') $key
             Check 'fresh_browser_handoff_material' ([bool]$issued.bootstrap_token)
             $edge=@("${env:ProgramFiles(x86)}\Microsoft\Edge\Application\msedge.exe","$env:ProgramFiles\Microsoft\Edge\Application\msedge.exe") | Where-Object {Test-Path $_} | Select-Object -First 1
-            if(-not $edge){throw 'CI browser unavailable; cannot claim rendered-console verification'}
-            $dom=Join-Path $root 'console-dom.html';$err=Join-Path $root 'browser-error.txt'
-            $browserProfile=Join-Path $root 'isolated-browser'
+            if(-not $edge){throw 'CI browser unavailable'}
+            $profile=Join-Path $root 'isolated-browser'
             $url=$base+'/console/#bootstrap_token='+$issued.bootstrap_token
-            $args='--headless=new --no-first-run --disable-gpu --user-data-dir="'+$browserProfile+'" --virtual-time-budget=15000 --dump-dom "'+$url+'"'
-            $p=Start-Process $edge -ArgumentList $args -RedirectStandardOutput $dom -RedirectStandardError $err -PassThru
+            $info=New-Object Diagnostics.ProcessStartInfo
+            $info.FileName=$edge
+            $info.Arguments='--headless=new --no-first-run --disable-gpu --user-data-dir="'+$profile+'" --virtual-time-budget=20000 --dump-dom "'+$url+'"'
+            $info.UseShellExecute=$false;$info.RedirectStandardOutput=$true;$info.RedirectStandardError=$true
+            $info.StandardOutputEncoding=[Text.Encoding]::UTF8;$info.StandardErrorEncoding=[Text.Encoding]::UTF8
+            $p=New-Object Diagnostics.Process;$p.StartInfo=$info;$p.Start() | Out-Null
+            $read=$p.StandardOutput.ReadToEndAsync();$errorRead=$p.StandardError.ReadToEndAsync()
             Check 'headless_browser_completed' ($p.WaitForExit(90000))
-            $html=Get-Content $dom -Raw -Encoding UTF8
+            $html=$read.GetAwaiter().GetResult()
             $overview=[string][char]0x603B+[char]0x89C8
             $scan=[string][char]0x626B+[char]0x63CF+[char]0x672C+[char]0x673A
+            $body=[regex]::Match($html,'(?s)<body[^>]*>(.*)</body>').Groups[1].Value
+            $text=[regex]::Replace($body,'(?s)<script.*?</script>|<style.*?</style>','')
+            $text=[Net.WebUtility]::HtmlDecode([regex]::Replace($text,'<[^>]+>',' '))
+            $text=$text.Replace($key,'[REDACTED]').Replace([string]$issued.bootstrap_token,'[REDACTED]')
+            $text=[regex]::Replace($text,'(?i)(?:gw_|sk-|vk_|eyJ)[A-Za-z0-9_.-]{10,}','[REDACTED]')
+            $text=[regex]::Replace($text,'\s+',' ').Trim()
+            @{length=$html.Length;visible_text=$text.Substring(0,[Math]::Min(2000,$text.Length));title=[regex]::Match($html,'<title>([^<]*)').Groups[1].Value} | ConvertTo-Json | Set-Content (Join-Path $out 'render-summary.json') -Encoding UTF8
             Check 'console_actually_rendered_overview_and_scan' ($html.Contains($overview) -and $html.Contains($scan))
-            # Do not export HTML, tokens, browser profile, model credentials or databases.
             $ok=$true
           } finally {
-            $result=@{success=$ok;checks=$checks;os=[Environment]::OSVersion.VersionString;test_type='fresh hosted Windows VM; isolated Unicode profile; restricted PATH; actual public command';windows_10_11_blank_physical_machine_tested=$false;model_accounts_present=$false;bootstrap_commit='49dcf97aa63865d86825a116aeb6d7d93d51203f';installer_sha256='e0ede3350235312db4c090b0aa731528ca963633e124cef2ebd861e2e52693d3'}
-            $result | ConvertTo-Json -Depth 8 | Set-Content (Join-Path $out 'public-install-result.json') -Encoding UTF8
+            @{success=$ok;checks=$checks;os=[Environment]::OSVersion.VersionString;test_type='fresh hosted Windows VM; isolated Unicode profile; restricted PATH; actual public command';windows_10_11_blank_physical_machine_tested=$false;model_accounts_present=$false;bootstrap_commit='49dcf97aa63865d86825a116aeb6d7d93d51203f';installer_sha256='e0ede3350235312db4c090b0aa731528ca963633e124cef2ebd861e2e52693d3'} | ConvertTo-Json -Depth 8 | Set-Content (Join-Path $out 'public-install-result.json') -Encoding UTF8
             $logs=Join-Path $env:LOCALAPPDATA 'UniAI Installer\logs'
             if(Test-Path $logs){Get-ChildItem $logs -Filter '*.log' | ForEach-Object {Copy-Item $_.FullName $out;Get-Content $_.FullName -Tail 15 -Encoding UTF8 | Write-Host}}
+            if(Test-Path (Join-Path $out 'render-summary.json')){Get-Content (Join-Path $out 'render-summary.json') -Raw -Encoding UTF8 | Write-Host}
           }
       - name: Retain sanitized verification evidence
         if: always()
