@@ -3,6 +3,7 @@ on:
   push:
     paths:
       - tools/repair_installer.py
+      - tools/verify_install.ps1
       - install.ps1
       - .github/workflows/installer-repair.yml
   workflow_dispatch:
@@ -17,68 +18,16 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
-      - name: Download the exact published input and build the entry repair
+      - name: Download verified original and build repaired installer
         shell: pwsh
         run: |
           New-Item -ItemType Directory -Force out | Out-Null
           Invoke-WebRequest 'https://github.com/Buer5460/uniai-gateway-setup/releases/download/v0.8.0/UniAI-Setup-0.8.0-windows-x64.exe' -OutFile out/original.exe
           python tools/repair_installer.py out/original.exe out/UniAI-Setup-0.8.0-installer-fix.1-windows-x64.exe
           if ($LASTEXITCODE -ne 0) { throw 'Build failed' }
-      - name: Verify actual Windows GUI and clean-profile one-command installation
+      - name: Verify native GUI and isolated-profile one-command installation
         shell: powershell
-        run: |
-          $ErrorActionPreference='Stop'
-          $repo=$PWD.Path
-          $out=Join-Path $repo 'out'
-          $original=Join-Path $out 'original.exe'
-          $fixed=Join-Path $out 'UniAI-Setup-0.8.0-installer-fix.1-windows-x64.exe'
-          $root=Join-Path $env:RUNNER_TEMP ('UniAI-' + [char]0x7A7A + [char]0x767D + ' test user')
-          $env:USERPROFILE=Join-Path $root 'profile'
-          $env:HOME=$env:USERPROFILE
-          $env:APPDATA=Join-Path $env:USERPROFILE 'AppData\Roaming'
-          $env:LOCALAPPDATA=Join-Path $env:USERPROFILE 'AppData\Local'
-          $env:TEMP=Join-Path $root 'temp'
-          $env:TMP=$env:TEMP
-          foreach($d in @($env:USERPROFILE,$env:APPDATA,$env:LOCALAPPDATA,$env:TEMP,(Join-Path $env:USERPROFILE 'Desktop'))) { New-Item -ItemType Directory -Force $d | Out-Null }
-          Remove-Item Env:PYTHONHOME,Env:PYTHONPATH,Env:TCL_LIBRARY,Env:TK_LIBRARY -ErrorAction SilentlyContinue
-          $env:PATH="$env:SystemRoot\System32;$env:SystemRoot;$env:SystemRoot\System32\WindowsPowerShell\v1.0"
-          Set-Location $root
-          $results=[System.Collections.Generic.List[object]]::new()
-          function Case($name,$ok,$detail) {
-            $results.Add([pscustomobject]@{name=$name;passed=[bool]$ok;detail=$detail})
-            $results | ConvertTo-Json -Depth 6 | Set-Content (Join-Path $out 'windows-results.json') -Encoding UTF8
-            if(-not $ok) { throw ('FAILED: '+$name+' '+$detail) }
-          }
-          Case 'no_python_node_git_on_path' (-not (Get-Command python,node,git -ErrorAction SilentlyContinue)) 'PATH is restricted; packaged runtime must provide dependencies. Hosted OS is Windows Server 2022, not Windows 11.'
-          $p=Start-Process -FilePath $original -PassThru
-          $exited=$p.WaitForExit(30000)
-          Case 'original_gui_noop_reproduced' ($exited -and $p.ExitCode -eq 0 -and -not(Test-Path (Join-Path $env:LOCALAPPDATA 'UniAI Gateway\install.json'))) 'No-argument original exits zero without installing.'
-          $p=Start-Process -FilePath $fixed -PassThru
-          $window=$null
-          for($i=0;$i -lt 30;$i++) {
-            Start-Sleep 1
-            $window=Get-Process -ErrorAction SilentlyContinue | Where-Object { $_.ProcessName -like 'UniAI-Setup-0.8.0-installer-fix*' -and $_.MainWindowHandle -ne 0 } | Select-Object -First 1
-            if($window) { break }
-          }
-          Case 'fixed_gui_window_visible' ([bool]$window) $(if($window){$window.MainWindowTitle}else{'No native window'})
-          $window.CloseMainWindow() | Out-Null
-          $p.WaitForExit(15000) | Out-Null
-          $target=Join-Path $env:LOCALAPPDATA 'UniAI Gateway'
-          & (Join-Path $repo 'install.ps1') -InstallDir $target -PackagePath $original -NoOpen
-          Case 'original_silent_branch_via_fixed_bootstrap' (Test-Path (Join-Path $target 'install.json')) 'Real installer, not mocks; correct quoted path, checks runtime and assets.'
-          & (Join-Path $repo 'install.ps1') -InstallDir $target -PackagePath $original -NoOpen
-          Case 'rerun_preserves_installation' $true 'Second invocation verifies and reuses existing installation.'
-          $stop=Start-Process -FilePath (Join-Path $target 'uniai-agent.exe') -ArgumentList '-m runtime.service stop' -PassThru
-          $stop.WaitForExit(60000) | Out-Null
-          $uninstall=Start-Process -FilePath (Join-Path $target 'uninstall.exe') -ArgumentList '--uninstall --yes' -PassThru
-          if(-not $uninstall.WaitForExit(60000)) { throw 'Uninstall timeout' }
-          Case 'uninstall_removes_main_executable' (-not(Test-Path (Join-Path $target 'UniAI.exe'))) ('exit '+$uninstall.ExitCode)
-          $target2=Join-Path $env:LOCALAPPDATA 'UniAI Fixed Gateway'
-          $sha=(Get-FileHash $fixed -Algorithm SHA256).Hash
-          & (Join-Path $repo 'install.ps1') -InstallDir $target2 -PackagePath $fixed -PackageSha256 $sha -NoOpen
-          Case 'fixed_installer_runtime_and_console' (Test-Path (Join-Path $target2 'install.json')) 'Patched no-argument wizard and silent installer share the unchanged gateway payload.'
-          $info=@{os=[Environment]::OSVersion.VersionString;profile=$env:USERPROFILE;path=$env:PATH;no_model_accounts=$true;real_windows11_blank_machine_tested=$false;source_commit=$env:GITHUB_SHA;tests=$results}
-          $info | ConvertTo-Json -Depth 8 | Set-Content (Join-Path $out 'verification.json') -Encoding UTF8
+        run: '& .\tools\verify_install.ps1'
       - name: Upload diagnostics and repaired installer
         if: always()
         uses: actions/upload-artifact@v4
@@ -87,6 +36,7 @@ jobs:
           path: |
             out/UniAI-Setup-0.8.0-installer-fix.1-windows-x64.exe
             out/*.json
+            out/*.log
           retention-days: 14
       - name: Publish separately named prerelease only after all checks pass
         if: success()
