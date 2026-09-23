@@ -1,0 +1,82 @@
+name: Public one-line installation
+on:
+  push:
+    paths:
+      - .github/workflows/published-install.yml
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  public-install:
+    runs-on: windows-2022
+    timeout-minutes: 15
+    steps:
+      - name: Public download, install, launch and rendered console
+        shell: powershell
+        run: |
+          $ErrorActionPreference='Stop'
+          $out=Join-Path $env:GITHUB_WORKSPACE 'public-evidence'
+          New-Item -ItemType Directory -Force $out | Out-Null
+          $root=Join-Path $env:RUNNER_TEMP ('UniAI-'+[char]0x5168+[char]0x65B0+' user')
+          $env:USERPROFILE=Join-Path $root 'profile';$env:HOME=$env:USERPROFILE
+          $env:LOCALAPPDATA=Join-Path $env:USERPROFILE 'AppData\Local'
+          $env:APPDATA=Join-Path $env:USERPROFILE 'AppData\Roaming'
+          $env:TEMP=Join-Path $root 'temp';$env:TMP=$env:TEMP
+          foreach($d in @($env:LOCALAPPDATA,$env:APPDATA,$env:TEMP,(Join-Path $env:USERPROFILE 'Desktop'))) { New-Item -ItemType Directory -Force $d | Out-Null }
+          Remove-Item Env:PYTHONHOME,Env:PYTHONPATH,Env:TCL_LIBRARY,Env:TK_LIBRARY -ErrorAction SilentlyContinue
+          $env:PATH="$env:SystemRoot\System32;$env:SystemRoot;$env:SystemRoot\System32\WindowsPowerShell\v1.0"
+          Set-Location $root
+          $checks=[System.Collections.Generic.List[object]]::new()
+          function Check($name,$ok) { $checks.Add(@{name=$name;passed=[bool]$ok});Write-Host ($name+': '+$ok);if(-not $ok){throw ('FAILED '+$name)} }
+          function JsonRequest($method,$url,$key,$body='{}') {
+            $r=[Net.HttpWebRequest]::Create($url);$r.Proxy=$null;$r.Timeout=10000;$r.Method=$method
+            if($key){$r.Headers['Authorization']='Bearer '+$key}
+            if($method -eq 'POST'){$b=[Text.Encoding]::UTF8.GetBytes($body);$r.ContentType='application/json';$r.ContentLength=$b.Length;$s=$r.GetRequestStream();$s.Write($b,0,$b.Length);$s.Close()}
+            $resp=$r.GetResponse();try{$reader=New-Object IO.StreamReader($resp.GetResponseStream());try{return ($reader.ReadToEnd() | ConvertFrom-Json)}finally{$reader.Dispose()}}finally{$resp.Dispose()}
+          }
+          $ok=$false
+          try {
+            Check 'no_python_node_git_commands' (-not(Get-Command python,node,git -ErrorAction SilentlyContinue))
+            # This is the actual user-facing command, with no local package override.
+            $ErrorActionPreference='Stop'; [Net.ServicePointManager]::SecurityProtocol=[Net.SecurityProtocolType]::Tls12; & ([scriptblock]::Create((Invoke-WebRequest -UseBasicParsing -TimeoutSec 60 -Uri 'https://raw.githubusercontent.com/Buer5460/uniai-gateway-setup/49dcf97aa63865d86825a116aeb6d7d93d51203f/install.ps1').Content))
+            $target=Join-Path $env:LOCALAPPDATA 'UniAI Gateway'
+            Check 'public_command_created_installation' (Test-Path (Join-Path $target 'install.json'))
+            $config=Get-Content (Join-Path $target 'install.json') -Raw -Encoding UTF8 | ConvertFrom-Json
+            $base='http://127.0.0.1:'+$config.port
+            $keyPath=Join-Path $target 'data\run\launcher-admin.key'
+            for($i=0;$i -lt 90 -and -not(Test-Path $keyPath);$i++){Start-Sleep 1}
+            Check 'default_launcher_claimed_local_console' (Test-Path $keyPath)
+            $key=(Get-Content $keyPath -Raw -Encoding UTF8).Trim()
+            $health=JsonRequest 'GET' ($base+'/health') ''
+            Check 'gateway_identity_healthy' ($health.service -eq 'uniai-gateway')
+            $dashboard=JsonRequest 'GET' ($base+'/api/dashboard') $key
+            Check 'authenticated_dashboard_response' ($null -ne $dashboard)
+            $issued=JsonRequest 'POST' ($base+'/api/bootstrap/issue') $key
+            Check 'fresh_browser_handoff_material' ([bool]$issued.bootstrap_token)
+            $edge=@("${env:ProgramFiles(x86)}\Microsoft\Edge\Application\msedge.exe","$env:ProgramFiles\Microsoft\Edge\Application\msedge.exe") | Where-Object {Test-Path $_} | Select-Object -First 1
+            if(-not $edge){throw 'CI browser unavailable; cannot claim rendered-console verification'}
+            $dom=Join-Path $root 'console-dom.html';$err=Join-Path $root 'browser-error.txt'
+            $browserProfile=Join-Path $root 'isolated-browser'
+            $url=$base+'/console/#bootstrap_token='+$issued.bootstrap_token
+            $args='--headless=new --no-first-run --disable-gpu --user-data-dir="'+$browserProfile+'" --virtual-time-budget=15000 --dump-dom "'+$url+'"'
+            $p=Start-Process $edge -ArgumentList $args -RedirectStandardOutput $dom -RedirectStandardError $err -PassThru
+            Check 'headless_browser_completed' ($p.WaitForExit(90000))
+            $html=Get-Content $dom -Raw -Encoding UTF8
+            $overview=[string][char]0x603B+[char]0x89C8
+            $scan=[string][char]0x626B+[char]0x63CF+[char]0x672C+[char]0x673A
+            Check 'console_actually_rendered_overview_and_scan' ($html.Contains($overview) -and $html.Contains($scan))
+            # Do not export HTML, tokens, browser profile, model credentials or databases.
+            $ok=$true
+          } finally {
+            $result=@{success=$ok;checks=$checks;os=[Environment]::OSVersion.VersionString;test_type='fresh hosted Windows VM; isolated Unicode profile; restricted PATH; actual public command';windows_10_11_blank_physical_machine_tested=$false;model_accounts_present=$false;bootstrap_commit='49dcf97aa63865d86825a116aeb6d7d93d51203f';installer_sha256='e0ede3350235312db4c090b0aa731528ca963633e124cef2ebd861e2e52693d3'}
+            $result | ConvertTo-Json -Depth 8 | Set-Content (Join-Path $out 'public-install-result.json') -Encoding UTF8
+            $logs=Join-Path $env:LOCALAPPDATA 'UniAI Installer\logs'
+            if(Test-Path $logs){Get-ChildItem $logs -Filter '*.log' | ForEach-Object {Copy-Item $_.FullName $out;Get-Content $_.FullName -Tail 15 -Encoding UTF8 | Write-Host}}
+          }
+      - name: Retain sanitized verification evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: public-one-line-installation
+          path: public-evidence/
+          retention-days: 14
