@@ -1,0 +1,65 @@
+name: Installer and session verification
+on:
+  push:
+    paths:
+      - tools/repair_console_cache.py
+      - tools/console_session_sync.py
+      - tools/verify_browser.ps1
+      - .github/workflows/installer-session-fix.yml
+  workflow_dispatch:
+permissions:
+  contents: write
+concurrency:
+  group: installer-session-fix-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  verify:
+    runs-on: windows-2022
+    timeout-minutes: 18
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Build from exact original executable
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force out | Out-Null
+          Invoke-WebRequest 'https://github.com/Buer5460/uniai-gateway-setup/releases/download/v0.8.0/UniAI-Setup-0.8.0-windows-x64.exe' -OutFile out/original.exe
+          python tools/repair_console_cache.py out/original.exe out/UniAI-Setup-0.8.0-installer-fix.2-windows-x64.exe
+          if ($LASTEXITCODE -ne 0) { throw 'Build failed' }
+      - name: Verify actual installer, launcher and two authorized browser openings
+        shell: powershell
+        run: |
+          $ErrorActionPreference='Stop'
+          $repo=$PWD.Path
+          $original=Join-Path $repo 'tools\verify_install.ps1'
+          $generated=Join-Path $repo 'tools\verify_fix2_generated.ps1'
+          [IO.File]::WriteAllText($generated,([IO.File]::ReadAllText($original).Replace('installer-fix.1','installer-fix.2')),[Text.Encoding]::UTF8)
+          & $generated
+          $target=Join-Path $env:LOCALAPPDATA 'UniAI Gateway'
+          $browserScript=Join-Path $repo 'tools\verify_browser.ps1'
+          $tokens=$null;$parseErrors=$null
+          [Management.Automation.Language.Parser]::ParseFile($browserScript,[ref]$tokens,[ref]$parseErrors)|Out-Null
+          if($parseErrors.Count){$parseErrors | Format-List;throw 'Browser test script syntax error'}
+          & $browserScript -InstallDir $target -EvidencePath (Join-Path $repo 'out\browser-verification.json')
+      - name: Retain sanitized evidence and installer
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: uniai-installer-session-fix
+          path: |
+            out/UniAI-Setup-0.8.0-installer-fix.2-windows-x64.exe
+            out/*.json
+            out/*.log
+          retention-days: 14
+      - name: Publish only the verified installer
+        if: success()
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release view v0.8.0-installer-fix.2 --repo $env:GITHUB_REPOSITORY 2>$null
+          if ($LASTEXITCODE -eq 0) { Write-Host 'Existing release retained.'; exit 0 }
+          gh release create v0.8.0-installer-fix.2 --repo $env:GITHUB_REPOSITORY --target $env:GITHUB_SHA --prerelease --title 'UniAI 0.8.0 - installer and console fix 2' --notes 'Installer entry, Unicode shortcuts, and existing desktop-session cache synchronization. Original bootstrap proof/authorization retained; no new privileged identity is created. Verified on a fresh Windows Server 2022 runner, isolated Unicode profile and restricted PATH. Actual Windows 10/11 blank physical machines remain unverified. Unsigned; do not bypass security policies. See evidence.' out/UniAI-Setup-0.8.0-installer-fix.2-windows-x64.exe out/UniAI-Setup-0.8.0-installer-fix.2-windows-x64.json out/verification.json out/browser-verification.json
+          if ($LASTEXITCODE -ne 0) { throw 'Publication failed' }
