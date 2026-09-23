@@ -4,14 +4,14 @@ param(
     [string]$InstallDir = (Join-Path $env:LOCALAPPDATA 'UniAI Gateway'),
     [string]$PackagePath = '',
     [ValidatePattern('^[a-fA-F0-9]{64}$')]
-    [string]$PackageSha256 = 'e0ede3350235312db4c090b0aa731528ca963633e124cef2ebd861e2e52693d3',
+    [string]$PackageSha256 = '8209f31d7e7f312f20922d124a7f97c818874c5b330c84f462060ae73c5ee586',
     [ValidateRange(0,65535)][int]$Port = 0,
     [switch]$NoOpen,
     [switch]$EnableAutostart
 )
 $ErrorActionPreference = 'Stop'
 $ProgressPreference = 'Continue'
-$packageUrl = 'https://github.com/Buer5460/uniai-gateway-setup/releases/download/v0.8.0-installer-fix.1/UniAI-Setup-0.8.0-installer-fix.1-windows-x64.exe'
+$packageUrl = 'https://github.com/Buer5460/uniai-gateway-setup/releases/download/v0.8.0-installer-fix.2/UniAI-Setup-0.8.0-installer-fix.2-windows-x64.exe'
 $logRoot = Join-Path $env:LOCALAPPDATA 'UniAI Installer\logs'
 New-Item -ItemType Directory -Force -Path $logRoot | Out-Null
 $logFile = Join-Path $logRoot ('bootstrap-' + (Get-Date -Format 'yyyyMMdd-HHmmss') + '-' + $PID + '.log')
