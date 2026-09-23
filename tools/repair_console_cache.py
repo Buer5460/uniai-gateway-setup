@@ -1,17 +1,19 @@
-"""Build fix.2; no original executable is run during this build.
-Changes: verified installer entry and one management wrapper inside two
-packaged executables. Original authorization handlers execute unchanged.
+"""Build fix.2 without executing the original executable.
+The existing authorization handler stays intact; its successful response
+refreshes only a cache that the native launcher previously established.
 """
 from __future__ import annotations
-import argparse, hashlib, io, json, marshal, pathlib, struct, sys, zipfile, zlib
+import argparse, hashlib, io, json, marshal, pathlib, struct, zipfile, zlib
 from repair_installer import entries, repair, MAGIC
 
-def rebuild_archive(data, replacements):
-    start,lib,rows=entries(data)
-    body=bytearray();table=bytearray()
+def rebuild_archive(data,replacements):
+    start,lib,rows=entries(data);body=bytearray();table=bytearray()
     for name,kind,compressed,ulen,raw in rows:
         if name in replacements:
-            value=replacements[name];ulen=len(value);raw=zlib.compress(value,9);compressed=1
+            value=replacements[name];ulen=len(value)
+            # PYZ entries are read in-place by the bootloader. Preserve the
+            # original storage mode instead of wrapping PYZ in outer zlib.
+            raw=zlib.compress(value,9) if compressed else value
         off=len(body);body.extend(raw)
         encoded=name.encode()+b'\0';length=18+len(encoded);padding=(-length)%16;length+=padding
         table.extend(struct.pack('!IIIIBc',length,off,len(raw),ulen,compressed,kind)+encoded+b'\0'*padding)
@@ -40,14 +42,16 @@ def wrap_management(pyz):
     return bytes(body)
 
 def patch_program(data):
-    _,_,rows=entries(data)
-    row=next(row for row in rows if row[1]==b'z')
+    _,_,rows=entries(data);row=next(row for row in rows if row[1]==b'z')
     raw=zlib.decompress(row[4]) if row[2] else row[4]
-    return rebuild_archive(data,{row[0]:wrap_management(raw)})
+    if row[2]!=0 or not raw.startswith(b'PYZ\0'): raise ValueError('Unexpected PYZ storage mode')
+    result=rebuild_archive(data,{row[0]:wrap_management(raw)})
+    _,_,check=entries(result);new=next(r for r in check if r[0]==row[0])
+    if new[2]!=0 or not new[4].startswith(b'PYZ\0'): raise AssertionError('Bootloader PYZ layout changed')
+    return result
 
-def build(source, output):
-    intermediate=output.with_name('installer-entry-intermediate.exe')
-    repair(source,intermediate)
+def build(source,output):
+    intermediate=output.with_name('installer-entry-intermediate.exe');repair(source,intermediate)
     first=intermediate.read_bytes();_,_,rows=entries(first)
     item=next(row for row in rows if row[0]=='payload.zip')
     old_payload=zlib.decompress(item[4]) if item[2] else item[4]
@@ -59,12 +63,10 @@ def build(source, output):
                 before=hashlib.sha256(value).hexdigest();value=patch_program(value)
                 changed.append({'file':item.filename,'before':before,'after':hashlib.sha256(value).hexdigest()})
             dst.writestr(item,value)
-    if len(changed)!=2: raise ValueError('Expected the GUI and worker executables')
-    result=rebuild_archive(first,{'payload.zip':new_stream.getvalue()})
-    output.write_bytes(result)
-    metadata={'repair':'installer-fix.2','original_sha256':hashlib.sha256(source.read_bytes()).hexdigest(),'sha256':hashlib.sha256(result).hexdigest(),'bytes':len(result),'changed_payload_files':changed,'management_change':'post-success refresh of an existing local launcher cache only; original authorization handler runs first','gateway_model_and_protocol_code_unchanged':True,'unsigned':True}
-    output.with_suffix('.json').write_text(json.dumps(metadata,indent=2),encoding='utf-8')
-    print(json.dumps(metadata,indent=2))
+    if len(changed)!=2: raise ValueError('Expected GUI and worker executables')
+    result=rebuild_archive(first,{'payload.zip':new_stream.getvalue()});output.write_bytes(result)
+    metadata={'repair':'installer-fix.2','original_sha256':hashlib.sha256(source.read_bytes()).hexdigest(),'sha256':hashlib.sha256(result).hexdigest(),'bytes':len(result),'changed_payload_files':changed,'management_change':'refresh existing launcher cache after successful original authorization; no new identity','gateway_model_and_protocol_code_unchanged':True,'unsigned':True}
+    output.with_suffix('.json').write_text(json.dumps(metadata,indent=2),encoding='utf-8');print(json.dumps(metadata,indent=2))
 if __name__=='__main__':
     parser=argparse.ArgumentParser();parser.add_argument('input',type=pathlib.Path);parser.add_argument('output',type=pathlib.Path)
     args=parser.parse_args();build(args.input,args.output)
