@@ -1,0 +1,169 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<meta name="description" content="AI智企宽带：运营商存量客户AI升级的标准产品与联合运营价值分析" />
+<title>AI智企宽带｜我们在运营商AI升级中的价值</title>
+<style>
+:root{--bg:#06111f;--bg2:#091a2d;--panel:#0d2238;--panel2:#102a46;--blue:#2f7cff;--cyan:#37d6ff;--green:#39e3a2;--orange:#ffb454;--text:#f5f9ff;--muted:#9fb2c8;--line:rgba(255,255,255,.10);--white:#fff;--shadow:0 20px 60px rgba(0,0,0,.28);--radius:22px}
+*{box-sizing:border-box}html{scroll-behavior:smooth}body{margin:0;background:radial-gradient(circle at 18% 2%,rgba(47,124,255,.18),transparent 28%),radial-gradient(circle at 88% 12%,rgba(55,214,255,.10),transparent 24%),linear-gradient(180deg,var(--bg),#071523 60%,#06111f);color:var(--text);font-family:Inter,"Segoe UI","PingFang SC","Microsoft YaHei",Arial,sans-serif;line-height:1.7}
+a{color:inherit}.wrap{width:min(1180px,calc(100% - 36px));margin:auto}.nav{position:sticky;top:0;z-index:20;background:rgba(6,17,31,.78);backdrop-filter:blur(18px);border-bottom:1px solid var(--line)}
+.navin{height:68px;display:flex;align-items:center;justify-content:space-between;gap:24px}.brand{font-weight:800;letter-spacing:.2px}.brand span{color:var(--cyan)}
+.navlinks{display:flex;gap:18px;flex-wrap:wrap}.navlinks a{text-decoration:none;color:var(--muted);font-size:14px}.navlinks a:hover{color:white}
+.hero{padding:92px 0 68px;position:relative;overflow:hidden}.badge{display:inline-flex;align-items:center;gap:8px;border:1px solid rgba(55,214,255,.28);background:rgba(55,214,255,.08);color:#c9f7ff;padding:7px 12px;border-radius:999px;font-size:13px}.dot{width:7px;height:7px;border-radius:50%;background:var(--green);box-shadow:0 0 16px var(--green)}
+.hero-grid{display:grid;grid-template-columns:1.18fr .82fr;gap:46px;align-items:center}.hero h1{font-size:clamp(42px,6vw,76px);line-height:1.08;margin:20px 0 18px;letter-spacing:-2px}.hero h1 em{font-style:normal;background:linear-gradient(90deg,#fff,#69dcff);-webkit-background-clip:text;color:transparent}.hero p{font-size:19px;color:#c0cede;max-width:760px;margin:0}.hero-quote{margin-top:26px;padding:18px 20px;border-left:3px solid var(--cyan);background:rgba(255,255,255,.04);border-radius:0 14px 14px 0;font-size:18px}.hero-quote b{color:white}
+.hero-card{border:1px solid rgba(255,255,255,.12);background:linear-gradient(180deg,rgba(20,54,88,.88),rgba(10,31,52,.90));box-shadow:var(--shadow);border-radius:28px;padding:24px;position:relative}.hero-card:before{content:"";position:absolute;inset:-1px;border-radius:28px;background:linear-gradient(135deg,rgba(55,214,255,.35),transparent 35%,rgba(47,124,255,.25));z-index:-1}
+.stack{display:grid;gap:12px}.stack-item{padding:14px 16px;border:1px solid var(--line);background:rgba(255,255,255,.04);border-radius:14px;display:flex;align-items:center;justify-content:space-between;gap:15px}.stack-item strong{font-size:15px}.stack-item small{color:var(--muted)}.stack-item.highlight{background:linear-gradient(90deg,rgba(47,124,255,.22),rgba(55,214,255,.12));border-color:rgba(55,214,255,.28)}
+.arrow{color:var(--cyan);font-weight:900}.section{padding:76px 0;border-top:1px solid rgba(255,255,255,.06)}.eyebrow{color:var(--cyan);font-size:13px;font-weight:800;letter-spacing:1.6px;text-transform:uppercase}.section h2{font-size:clamp(30px,4vw,46px);line-height:1.2;margin:10px 0 14px;letter-spacing:-1px}.lead{color:var(--muted);font-size:18px;max-width:860px;margin-bottom:34px}.cards{display:grid;grid-template-columns:repeat(4,1fr);gap:16px}.card{background:linear-gradient(180deg,rgba(15,40,66,.78),rgba(10,29,49,.9));border:1px solid var(--line);border-radius:var(--radius);padding:22px;min-height:190px}.card .num{font-size:12px;color:var(--cyan);font-weight:800;letter-spacing:1px}.card h3{font-size:18px;margin:12px 0 8px}.card p{color:var(--muted);margin:0;font-size:14px}.card:hover{transform:translateY(-2px);border-color:rgba(55,214,255,.28);transition:.2s}
+.value-strip{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin-top:18px}.value-box{padding:26px;border-radius:20px;border:1px solid var(--line);background:rgba(255,255,255,.035)}.value-box b{display:block;font-size:26px;margin-bottom:6px}.value-box span{color:var(--muted)}
+.compare{display:grid;grid-template-columns:1fr 100px 1fr;align-items:stretch;gap:18px}.side{background:rgba(255,255,255,.035);border:1px solid var(--line);border-radius:22px;padding:26px}.side h3{margin:0 0 18px;font-size:24px}.side.operator h3{color:#bcd2ff}.side.us h3{color:#8be8ff}.side ul{list-style:none;padding:0;margin:0;display:grid;gap:11px}.side li{padding:10px 12px;border-radius:12px;background:rgba(255,255,255,.035);color:#d9e4ef}.bridge{display:flex;align-items:center;justify-content:center;flex-direction:column;color:var(--cyan);font-weight:900;text-align:center}.bridge .circle{width:74px;height:74px;border-radius:50%;border:1px solid rgba(55,214,255,.35);display:flex;align-items:center;justify-content:center;background:rgba(55,214,255,.08);margin-bottom:8px}
+.arch{position:relative;padding:28px;border:1px solid var(--line);border-radius:28px;background:rgba(255,255,255,.025);overflow:hidden}.arch:after{content:"";position:absolute;width:380px;height:380px;border-radius:50%;background:rgba(47,124,255,.08);filter:blur(20px);right:-150px;top:-180px}.layers{display:grid;gap:11px;position:relative;z-index:1}.layer{display:grid;grid-template-columns:180px 1fr;gap:16px;align-items:center;padding:16px 18px;border-radius:16px;border:1px solid var(--line);background:rgba(4,15,27,.62)}.layer .tag{font-weight:800}.layer .desc{color:var(--muted)}.layer.core{border-color:rgba(55,214,255,.35);background:linear-gradient(90deg,rgba(47,124,255,.18),rgba(55,214,255,.08))}.layer.core .tag{color:#9cecff}
+.flow{display:grid;grid-template-columns:repeat(9,auto);align-items:center;justify-content:space-between;gap:8px;overflow-x:auto;padding:16px 0}.node{min-width:108px;padding:16px 12px;border-radius:16px;text-align:center;border:1px solid var(--line);background:rgba(255,255,255,.035);font-weight:700}.node span{display:block;color:var(--muted);font-weight:500;font-size:12px;margin-top:3px}.flow .arr{color:#5ecfff;font-size:22px}
+.matrix{width:100%;border-collapse:collapse;background:rgba(255,255,255,.025);border-radius:20px;overflow:hidden;border:1px solid var(--line)}.matrix th,.matrix td{padding:16px 18px;border-bottom:1px solid var(--line);text-align:left}.matrix th{background:rgba(255,255,255,.045);color:#dfeaff}.matrix td{color:#bfd0df}.matrix tr:last-child td{border-bottom:0}.matrix .ours{color:#87e8ff;font-weight:700}
+.revenue{display:grid;grid-template-columns:repeat(6,1fr);gap:12px}.rev{min-height:142px;border:1px solid var(--line);border-radius:18px;padding:18px;background:rgba(255,255,255,.03)}.rev b{display:block;font-size:16px;margin-bottom:8px}.rev span{font-size:13px;color:var(--muted)}
+.moat{display:grid;grid-template-columns:repeat(5,1fr);gap:14px}.moat .m{aspect-ratio:1/1;border-radius:50%;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:18px;border:1px solid rgba(55,214,255,.25);background:radial-gradient(circle,rgba(55,214,255,.10),rgba(47,124,255,.05) 70%,transparent);box-shadow:inset 0 0 45px rgba(47,124,255,.04)}.m strong{font-size:18px}.m small{color:var(--muted);margin-top:5px}
+.roadmap{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;counter-reset:step}.step{position:relative;padding:22px;border-radius:18px;border:1px solid var(--line);background:rgba(255,255,255,.032)}.step:before{counter-increment:step;content:"0" counter(step);display:inline-flex;width:34px;height:34px;border-radius:50%;align-items:center;justify-content:center;background:rgba(47,124,255,.20);color:#b9d2ff;font-size:12px;font-weight:800}.step h3{margin:14px 0 7px}.step p{color:var(--muted);font-size:14px;margin:0}.step strong{color:#86e7ff}
+.quote{font-size:clamp(26px,4vw,42px);line-height:1.35;text-align:center;max-width:1000px;margin:0 auto 30px}.quote em{font-style:normal;color:#78e4ff}.final-card{padding:34px;border:1px solid rgba(55,214,255,.30);background:linear-gradient(135deg,rgba(47,124,255,.20),rgba(55,214,255,.07));border-radius:28px;text-align:center}.final-card h3{font-size:30px;margin:0 0 10px}.final-card p{color:#c8d7e6;max-width:820px;margin:auto}.pillrow{display:flex;flex-wrap:wrap;gap:10px;justify-content:center;margin-top:24px}.pill{padding:8px 13px;border-radius:999px;border:1px solid var(--line);background:rgba(255,255,255,.04);font-size:13px;color:#cfe0ef}
+.footer{padding:38px 0 58px;color:#758aa0;font-size:12px;border-top:1px solid var(--line)}.footer a{color:#9bc5ff}.notice{padding:14px 16px;border-radius:14px;background:rgba(255,180,84,.07);border:1px solid rgba(255,180,84,.22);color:#d8c4a6;font-size:13px;margin-top:22px}
+@media(max-width:980px){.hero-grid{grid-template-columns:1fr}.cards{grid-template-columns:repeat(2,1fr)}.compare{grid-template-columns:1fr}.bridge{padding:3px}.bridge .circle{transform:rotate(90deg)}.value-strip{grid-template-columns:1fr}.revenue{grid-template-columns:repeat(3,1fr)}.moat{grid-template-columns:repeat(3,1fr)}.roadmap{grid-template-columns:repeat(2,1fr)}.navlinks{display:none}}
+@media(max-width:640px){.wrap{width:min(100% - 24px,1180px)}.hero{padding:62px 0 42px}.hero h1{letter-spacing:-1px}.cards{grid-template-columns:1fr}.layer{grid-template-columns:1fr}.revenue{grid-template-columns:repeat(2,1fr)}.moat{grid-template-columns:repeat(2,1fr)}.roadmap{grid-template-columns:1fr}.matrix{font-size:13px}.matrix th,.matrix td{padding:12px 10px}.section{padding:58px 0}}
+@media print{.nav{display:none}body{background:white;color:#132238}.section{border-top:1px solid #ddd}.card,.side,.arch,.rev,.step,.final-card{box-shadow:none;background:white;border-color:#dfe6ee}.lead,.card p,.side li,.layer .desc,.matrix td,.rev span,.step p,.footer{color:#5f7080}.hero{padding-top:30px}.hero-card{background:#f4f8fc;color:#132238}.hero h1 em{color:#1e6de8;-webkit-text-fill-color:#1e6de8}.badge{color:#167da0;border-color:#8ad7ef}.quote,.section h2{color:#132238}}
+</style>
+</head>
+<body>
+<nav class="nav"><div class="wrap navin"><div class="brand">AI智企宽带 <span>AI Enterprise Broadband</span></div><div class="navlinks"><a href="#value">我们的价值</a><a href="#roles">合作分工</a><a href="#architecture">平台架构</a><a href="#business">商业模式</a><a href="#roadmap">落地路径</a></div></div></nav>
+
+<header class="hero"><div class="wrap hero-grid">
+  <div>
+    <span class="badge"><span class="dot"></span>运营商存量企业客户 AI 升级方案 · 商务讨论版</span>
+    <h1>运营商负责连接客户，<br><em>我们负责让 AI 真正干活。</em></h1>
+    <p>我们不是模型代理商，也不应成为项目制外包团队。我们的核心角色，是把运营商已经拥有的网络、客户、计费、云与渠道能力，封装成一个<strong>可销售、可计量、可运营、可持续分润</strong>的企业 AI 标准产品。</p>
+    <div class="hero-quote">一句话定位：<b>把“宽带客户”升级成“AI 服务客户”。</b></div>
+  </div>
+  <aside class="hero-card">
+    <div class="stack">
+      <div class="stack-item"><div><strong>运营商已有能力</strong><br><small>网络 · 客户 · 渠道 · 计费 · 云</small></div><div class="arrow">↓</div></div>
+      <div class="stack-item highlight"><div><strong>我们负责产品化</strong><br><small>Gateway · Token · Agent · Skills · AI Console</small></div><div class="arrow">↓</div></div>
+      <div class="stack-item"><div><strong>客户真正购买</strong><br><small>AI办公 · AI客服 · AI营销 · AI获客 · 行业AI</small></div><div class="arrow">↓</div></div>
+      <div class="stack-item"><div><strong>双方获得新增收入</strong><br><small>套餐 · 用量 · Agent · 应用市场 · 行业方案</small></div><div class="arrow">◎</div></div>
+    </div>
+  </aside>
+</div></header>
+
+<section class="section" id="value"><div class="wrap">
+  <div class="eyebrow">01 · Why us</div><h2>我们存在的价值，不是“接模型”，而是完成中间这层</h2>
+  <p class="lead">模型厂商提供智能，运营商提供连接与规模，但真正让企业客户愿意持续付费，需要一层持续产品化、计量、编排与场景运营能力。这一层就是我们的核心位置。</p>
+  <div class="cards">
+    <div class="card"><div class="num">VALUE 01</div><h3>把资源变成标准产品</h3><p>将宽带、云、模型、Token、企业权限、AI员工与应用封装成“开通即用”的 AI 智企宽带，而不是散乱能力采购。</p></div>
+    <div class="card"><div class="num">VALUE 02</div><h3>把模型变成业务结果</h3><p>客户不关心参数与 API，客户关心获客、客服、方案、经营分析。我们负责从模型到 Agent、Workflow 与业务结果的最后一公里。</p></div>
+    <div class="card"><div class="num">VALUE 03</div><h3>统一多模型路由</h3><p>根据任务、成本、安全与数据边界自动选择不同模型，让运营商拥有统一 AI 入口，而不是被任何单一模型绑定。</p></div>
+    <div class="card"><div class="num">VALUE 04</div><h3>Token 经营与 AI FinOps</h3><p>管理企业、部门、员工和 Agent 的额度、用量、模型成本与毛利，为运营商 AI 套餐和持续计费提供底层计量系统。</p></div>
+    <div class="card"><div class="num">VALUE 05</div><h3>持续快速迭代</h3><p>AI 产品更新速度远高于传统网络产品。我们负责快速验证 MCP、Agent、Computer Use 等新能力，再交给运营商规模化复制。</p></div>
+    <div class="card"><div class="num">VALUE 06</div><h3>行业场景产品化</h3><p>同一底座，通过不同 Skills、数据与 Workflow，快速生成商户、酒店、旅游、外贸、教育、物流、园区等行业版本。</p></div>
+    <div class="card"><div class="num">VALUE 07</div><h3>统一企业 AI 治理</h3><p>进一步管理 AI 软件、账号、模型、Token、Agent、Skills、费用和权限，让企业从“各自买 AI”变成统一 AI 运营。</p></div>
+    <div class="card"><div class="num">VALUE 08</div><h3>建立第三方应用生态</h3><p>让财税、法务、营销、旅游等服务商开发 Agent / Skill 上架，运营商获得生态，平台获得持续交易与抽佣。</p></div>
+  </div>
+  <div class="value-strip">
+    <div class="value-box"><b>资源 → 产品</b><span>运营商有资源，我们负责把资源组合成能卖的标准套餐。</span></div>
+    <div class="value-box"><b>模型 → 结果</b><span>模型提供答案，我们负责让 AI 完成企业业务任务。</span></div>
+    <div class="value-box"><b>项目 → 平台</b><span>不是一单一做，而是一个底座持续复用、持续收费。</span></div>
+  </div>
+</div></section>
+
+<section class="section" id="roles"><div class="wrap">
+  <div class="eyebrow">02 · Partnership</div><h2>双方不是甲乙方外包关系，而是“渠道规模 × 技术产品”的联合运营</h2>
+  <p class="lead">最合理的结构，是运营商利用已有客户和基础设施，我们承担 AI 标准产品与持续运营能力；双方共同把存量客户升级为新业务客户。</p>
+  <div class="compare">
+    <div class="side operator"><h3>移动 / 电信贡献</h3><ul>
+      <li>存量企业宽带与专线客户</li><li>政企客户经理与营业渠道</li><li>网络、FTTR、云、算力资源</li><li>品牌信任与企业客户关系</li><li>CRM、统一账单、收款与结算</li><li>一级客服与规模化交付能力</li>
+    </ul></div>
+    <div class="bridge"><div class="circle">×</div>联合<br>产品</div>
+    <div class="side us"><h3>我们贡献</h3><ul>
+      <li>AI Gateway 与多模型路由</li><li>Token Accounting / AI FinOps</li><li>Agent Runtime 与 Workflow</li><li>Skills / MCP 平台及应用市场</li><li>企业 AI Console 与权限治理</li><li>行业方案、产品迭代与二/三级技术支持</li>
+    </ul></div>
+  </div>
+  <div class="notice">关键原则：避免定位成“运营商提需求、我们写代码”的一次性项目。标准平台、Token 计量、Agent 运行与 Skills/MCP 体系应沉淀为我们可持续迭代的核心产品能力。</div>
+</div></section>
+
+<section class="section" id="architecture"><div class="wrap">
+  <div class="eyebrow">03 · Product architecture</div><h2>我们真正要掌握的是“企业 AI 操作系统”的中间层</h2>
+  <p class="lead">路由器可以成为入口，但第一阶段不必改固件。先通过云端身份绑定、统一 Gateway 和运营商客户体系完成产品闭环，成熟后再进入 FTTR/企业网关。</p>
+  <div class="arch"><div class="layers">
+    <div class="layer"><div class="tag">企业客户入口</div><div class="desc">AI网页 / 企业客户端 / API / 浏览器插件 / 运营商门户 / 后续网关 Agent</div></div>
+    <div class="layer"><div class="tag">运营商能力层</div><div class="desc">客户身份 · 宽带/专线 · CRM · 统一计费 · 云资源 · 客户经理 · 营销渠道</div></div>
+    <div class="layer core"><div class="tag">我们的核心平台</div><div class="desc"><strong>AI Gateway</strong> · <strong>Token Accounting</strong> · <strong>Enterprise AI Console</strong> · 权限与审计 · 成本与毛利</div></div>
+    <div class="layer core"><div class="tag">AI 执行层</div><div class="desc"><strong>Agent Runtime</strong> · Skills · MCP · Workflow · 企业知识库 · 自动化任务</div></div>
+    <div class="layer"><div class="tag">模型与算力层</div><div class="desc">运营商自研模型 · DeepSeek · Qwen · GLM · GPT · Claude · Gemini · 私有模型 / 本地模型</div></div>
+    <div class="layer"><div class="tag">业务结果层</div><div class="desc">AI办公 · AI客服 · AI营销 · AI获客 · AI经营分析 · 行业 Agent / 行业应用</div></div>
+  </div></div>
+  <div class="flow" aria-label="AI任务流">
+    <div class="node">企业用户<span>发起任务</span></div><div class="arr">→</div>
+    <div class="node">身份/套餐<span>权限判断</span></div><div class="arr">→</div>
+    <div class="node">Token Router<span>额度/成本</span></div><div class="arr">→</div>
+    <div class="node">模型/Agent<span>智能执行</span></div><div class="arr">→</div>
+    <div class="node">业务结果<span>持续计量</span></div>
+  </div>
+</div></section>
+
+<section class="section"><div class="wrap">
+  <div class="eyebrow">04 · Positioning</div><h2>三类角色各自做自己最擅长的事</h2>
+  <table class="matrix">
+    <thead><tr><th>角色</th><th>天然优势</th><th>不需要重复建设</th><th>核心收益</th></tr></thead>
+    <tbody>
+      <tr><td>移动 / 电信</td><td>客户、网络、渠道、品牌、计费、云</td><td>无需自己从零维护大量行业 Agent</td><td>宽带 ARPU → AI ARPU，增强客户粘性</td></tr>
+      <tr><td>模型厂商</td><td>模型、算力、推理能力</td><td>无需逐行业获取中小企业客户</td><td>Token / API 消耗增长</td></tr>
+      <tr><td class="ours">我们</td><td class="ours">产品、Gateway、Token、Agent、Skills、行业方案</td><td class="ours">无需从零建立全国运营商级销售网络</td><td class="ours">平台费 + 订阅 + 用量 + Agent + 生态收入</td></tr>
+    </tbody>
+  </table>
+</div></section>
+
+<section class="section" id="business"><div class="wrap">
+  <div class="eyebrow">05 · Business model</div><h2>真正健康的合作，不靠一次开发费，而靠持续共同增收</h2>
+  <p class="lead">商业模型应同时覆盖平台、客户、用量、Agent 与生态交易，让双方客户规模越大、持续收入越高。</p>
+  <div class="revenue">
+    <div class="rev"><b>平台建设 / 接入费</b><span>初期系统集成、运营商 CRM / 计费 / 身份体系接入。</span></div>
+    <div class="rev"><b>每客户月服务费</b><span>AI 智企宽带基础包、企业管理后台与基础 Agent。</span></div>
+    <div class="rev"><b>AI 资源消费收益</b><span>模型、Token、算力按套餐与实际用量形成持续消费。</span></div>
+    <div class="rev"><b>Agent 订阅</b><span>AI客服、AI营销、AI获客、AI经营分析等专项能力。</span></div>
+    <div class="rev"><b>应用市场抽佣</b><span>第三方 Skill / MCP / Agent 上架、交易、结算与分润。</span></div>
+    <div class="rev"><b>行业方案实施</b><span>酒店、旅游、外贸、教育、园区等定制化实施和服务。</span></div>
+  </div>
+  <div class="notice">示意原则：套餐收入 − 模型/算力成本 − 云资源 − 运营成本 = 可分配毛利；再根据运营商、技术平台与第三方开发者的贡献进行分润。具体比例应在试点阶段通过真实成本数据测算。</div>
+</div></section>
+
+<section class="section"><div class="wrap">
+  <div class="eyebrow">06 · Moat</div><h2>我们必须牢牢掌握的五个核心能力</h2>
+  <p class="lead">真正的护城河不是某一个模型，而是企业如何持续使用 AI 的统一运行、治理和计量平台。</p>
+  <div class="moat">
+    <div class="m"><strong>AI Gateway</strong><small>统一模型入口<br>策略路由</small></div>
+    <div class="m"><strong>Token Accounting</strong><small>额度 / 计费<br>成本 / 毛利</small></div>
+    <div class="m"><strong>Agent Runtime</strong><small>AI员工<br>持续执行</small></div>
+    <div class="m"><strong>Skills / MCP</strong><small>能力市场<br>快速扩展</small></div>
+    <div class="m"><strong>AI Console</strong><small>企业权限<br>治理 / 审计</small></div>
+  </div>
+</div></section>
+
+<section class="section" id="roadmap"><div class="wrap">
+  <div class="eyebrow">07 · Go-to-market</div><h2>把构想做成运营商能卖的标准产品</h2>
+  <p class="lead">先跑通“存量客户升级”的商业闭环，再做路由器/网关深度植入，降低第一阶段内部协调和技术改造成本。</p>
+  <div class="roadmap">
+    <div class="step"><h3>关系客户验证</h3><p><strong>约 20 家</strong>。验证 AI办公、AI营销、AI客服、AI获客四个最容易理解的能力，采集真实成本与使用数据。</p></div>
+    <div class="step"><h3>运营商联合试点</h3><p><strong>约 100 家</strong>。打通企业身份、套餐、后台管理与基础计量，验证开通率、活跃率、Agent 使用率和单位成本。</p></div>
+    <div class="step"><h3>省内标准化复制</h3><p><strong>约 1,000 家</strong>。接入客户经理渠道、CRM/计费流程，沉淀销售话术、培训、客服与运维标准。</p></div>
+    <div class="step"><h3>网关与生态阶段</h3><p>在商业闭环成立后，再进入 FTTR / 企业网关 Agent、行业 Agent、第三方 Skills 市场和跨省复制。</p></div>
+  </div>
+</div></section>
+
+<section class="section"><div class="wrap">
+  <div class="quote">“运营商解决连接和客户规模，<em>我们解决 AI 如何真正进入企业业务。</em>”</div>
+  <div class="final-card"><h3>最终产品：AI智企宽带</h3><p>基于运营商存量企业宽带客户，将传统网络连接升级为“网络 + AI模型 + Token + AI员工 + 行业应用”的企业智能服务。我们不是附属开发团队，而是这套 AI 产品的技术平台与持续运营方。</p><div class="pillrow"><span class="pill">可销售</span><span class="pill">可计量</span><span class="pill">可管理</span><span class="pill">可运营</span><span class="pill">可分润</span><span class="pill">可复制</span></div></div>
+</div></section>
+
+<footer class="footer"><div class="wrap">
+  <div><strong>说明：</strong>本页为合作方案与产品战略分析，套餐、客户规模及商业阶段为产品设计示意，不代表中国移动、中国电信或任何模型厂商已经发布或承诺的具体产品与价格。</div>
+  <div style="margin-top:10px">背景参考：<a href="https://www.chinatelecom-h.com/" target="_blank" rel="noopener">中国电信</a> · <a href="https://www.chinamobileltd.com/" target="_blank" rel="noopener">中国移动</a> · <a href="https://www.broadband-forum.org/" target="_blank" rel="noopener">Broadband Forum</a> · <a href="https://devku.ai/" target="_blank" rel="noopener">DevKu</a></div>
+  <div style="margin-top:8px">版本：2026-09 · AI Enterprise Broadband Strategy</div>
+</div></footer>
+</body>
+</html>
