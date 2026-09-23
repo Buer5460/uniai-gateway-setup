@@ -39,9 +39,9 @@ function ReadPageText($url) {
     $cts = New-Object Threading.CancellationTokenSource
     $cts.CancelAfter(10000)
     try {
-        $ws.ConnectAsync([Uri]$url,$cts.Token).GetAwaiter().GetResult()
+        $ws.ConnectAsync([Uri]$url,$cts.Token).GetAwaiter().GetResult() | Out-Null
         $bytes = [Text.Encoding]::UTF8.GetBytes('{"id":1,"method":"Runtime.evaluate","params":{"expression":"document.body.innerText","returnByValue":true}}')
-        $ws.SendAsync([ArraySegment[byte]]::new($bytes),[Net.WebSockets.WebSocketMessageType]::Text,$true,$cts.Token).GetAwaiter().GetResult()
+        $ws.SendAsync([ArraySegment[byte]]::new($bytes),[Net.WebSockets.WebSocketMessageType]::Text,$true,$cts.Token).GetAwaiter().GetResult() | Out-Null
         while ($true) {
             $stream = New-Object IO.MemoryStream
             try {
@@ -73,7 +73,7 @@ try {
             try {
                 $tabs = @((Request 'http://127.0.0.1:9222/json').data) | Where-Object { $_.type -eq 'page' -and $_.url -like ($base + '/console*') }
                 foreach ($tab in $tabs) {
-                    $text = ReadPageText $tab.webSocketDebuggerUrl
+                    [string]$text = ReadPageText $tab.webSocketDebuggerUrl
                     if ($text.Contains($overview) -and $text.Contains($scan)) { $ready=$true; break }
                 }
                 $after = if (Test-Path $keyPath) { (Get-FileHash $keyPath).Hash } else { '' }
