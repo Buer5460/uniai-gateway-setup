@@ -73,7 +73,7 @@
     <h2>第一次使用：复制这一行</h2>
     <p class="note">粘贴到 <strong>PowerShell</strong>（开始菜单搜“PowerShell”，Windows 11 里是“终端”的 PowerShell 标签页），回车。
        不需要预装 Python / Node / Git，也不需要管理员权限。</p>
-    <div class="cmd" id="cmd"><button class="btn small copy" onclick="copyCmd()">复制</button><span id="cmdtext">[Net.ServicePointManager]::SecurityProtocol='Tls12'; iwr -Uri https://github.com/Buer5460/uniai-gateway-setup/releases/download/v0.8.0/UniAI-Setup-0.8.0-windows-x64.exe -OutFile $env:TEMP\UniAI-Setup.exe -UseBasicParsing; Start-Process -FilePath $env:TEMP\UniAI-Setup.exe -ArgumentList '--silent','--dir',"$env:LOCALAPPDATA\UniAI Gateway",'--launch' -Wait</span></div>
+    <div class="cmd" id="cmd"><button class="btn small copy" onclick="copyCmd()">复制</button><span id="cmdtext">[Net.ServicePointManager]::SecurityProtocol='Tls12'; $ProgressPreference='SilentlyContinue'; iwr -Uri https://github.com/Buer5460/uniai-gateway-setup/releases/download/v0.8.0/UniAI-Setup-0.8.0-windows-x64.exe -OutFile $env:TEMP\UniAI-Setup.exe -UseBasicParsing; Start-Process -FilePath $env:TEMP\UniAI-Setup.exe -ArgumentList '--silent','--dir',"$env:LOCALAPPDATA\UniAI Gateway",'--launch' -Wait</span></div>
     <p class="note">这一行做三件事：下载安装包 → 静默安装到 <code>%LOCALAPPDATA%\UniAI Gateway</code>（端口自动挑第一个空闲的，从 8935 开始）→ 装完直接打开控制台。</p>
   </section>
 
