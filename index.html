@@ -1,130 +1,25 @@
 <!DOCTYPE html>
 <html lang="zh-CN">
 <head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<title>UniAI Gateway — 安装与打开控制台</title>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>UniAI Gateway · 一行安装与打开</title>
 <style>
-  :root{
-    --bg:#f6f7f9; --card:#ffffff; --line:#e3e6ea; --text:#1c2024;
-    --muted:#5c6570; --accent:#1f6feb; --accent-ink:#ffffff;
-    --code-bg:#0f1720; --code-text:#e6edf3; --ok:#1a7f37; --warn:#9a6700;
-  }
-  *{box-sizing:border-box}
-  body{margin:0;background:var(--bg);color:var(--text);
-       font-family:"Segoe UI",-apple-system,"Microsoft YaHei",system-ui,sans-serif;line-height:1.65}
-  .wrap{max-width:920px;margin:0 auto;padding:40px 20px 72px}
-  header{text-align:center;margin-bottom:34px}
-  h1{font-size:30px;margin:0 0 8px;letter-spacing:-.4px}
-  .sub{color:var(--muted);margin:0}
-  .card{background:var(--card);border:1px solid var(--line);border-radius:14px;
-        padding:22px 24px;margin:18px 0;box-shadow:0 1px 2px rgba(16,24,40,.04)}
-  .card h2{font-size:18px;margin:0 0 6px}
-  .card p{margin:6px 0;color:var(--muted)}
-  .step{display:inline-block;min-width:26px;height:26px;line-height:26px;text-align:center;
-        background:var(--accent);color:#fff;border-radius:50%;font-size:13px;margin-right:8px}
-  .btn{display:inline-block;background:var(--accent);color:var(--accent-ink);
-       border:none;border-radius:10px;padding:13px 26px;font-size:16px;font-weight:600;
-       text-decoration:none;cursor:pointer}
-  .btn:hover{background:#1a5fd0}
-  .btn.ghost{background:transparent;color:var(--accent);border:1px solid var(--line)}
-  .btn.small{padding:8px 14px;font-size:14px}
-  .row{display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-top:14px}
-  .cmd{position:relative;background:var(--code-bg);color:var(--code-text);
-       border-radius:10px;padding:16px 18px;font-family:"Cascadia Mono",Consolas,
-       "Courier New",monospace;font-size:13px;line-height:1.6;overflow-x:auto;white-space:pre}
-  .cmd .copy{position:absolute;top:10px;right:10px}
-  .tag{display:inline-block;font-size:12px;padding:2px 9px;border-radius:999px;
-       border:1px solid var(--line);color:var(--muted)}
-  .tag.ok{color:var(--ok);border-color:#b7dfc4}
-  .tag.warn{color:var(--warn);border-color:#e6d7a8}
-  table{border-collapse:collapse;width:100%;font-size:14px}
-  th,td{text-align:left;padding:8px 10px;border-bottom:1px solid var(--line);vertical-align:top}
-  th{color:var(--muted);font-weight:600}
-  code{background:#eef1f4;padding:1px 5px;border-radius:5px;font-size:13px}
-  footer{text-align:center;color:var(--muted);font-size:13px;margin-top:34px}
-  .note{font-size:13px;color:var(--muted);margin-top:10px}
+:root{color-scheme:light;--ink:#162239;--muted:#607086;--blue:#175cff;--line:#dde5ef}*{box-sizing:border-box}body{margin:0;background:#f5f7fb;color:var(--ink);font:16px/1.75 "Segoe UI","Microsoft YaHei",sans-serif}.wrap{max-width:960px;margin:auto;padding:48px 22px 70px}h1{font-size:36px;line-height:1.25;margin:12px 0}h2{font-size:22px;line-height:1.4;margin:0 0 12px}p{margin:10px 0}.muted{color:var(--muted)}.tag{display:inline-block;background:#e7eefc;padding:3px 12px;border-radius:20px;font-size:13px}.card{background:white;border:1px solid var(--line);border-radius:16px;padding:25px;margin:20px 0}.row{display:flex;gap:12px;align-items:center;flex-wrap:wrap}.btn{display:inline-block;background:var(--blue);border:0;border-radius:9px;color:white;font:600 15px/1.5 inherit;padding:12px 19px;text-decoration:none;cursor:pointer}.secondary{background:#eaf0fc;color:#174fbd}.command{font-family:Consolas,monospace;font-size:13px;line-height:1.7;white-space:pre-wrap;overflow-wrap:anywhere;background:#101b2e;color:#eaf2ff;border-radius:10px;padding:17px;margin:15px 0}.note{font-size:14px;color:var(--muted)}.warning{border-left:4px solid #cd900c;padding-left:14px}code{font-family:Consolas,monospace;overflow-wrap:anywhere}a{color:#1756c0}details{margin-top:12px}summary{cursor:pointer}table{width:100%;border-collapse:collapse;font-size:14px}td,th{padding:11px 8px;border-bottom:1px solid var(--line);text-align:left;vertical-align:top}footer{font-size:13px;color:var(--muted);padding-top:10px}
 </style>
 </head>
-<body>
-<div class="wrap">
-
-  <header>
-    <h1>UniAI Gateway</h1>
-    <p class="sub">把你本机已有的模型授权，变成一个 OpenAI 兼容的本地网关和一个控制台。</p>
-  </header>
-
-  <!-- 1. 已安装：直接打开 -->
-  <section class="card">
-    <span class="step">1</span>
-    <h2>已经安装过？点一下就能用</h2>
-    <p class="note">按钮调用的是本机 <code>UniAI.exe</code>（安装出来的那一份 Runtime），
-       浏览器只是转达，不会上传任何东西。首次点击 Windows/浏览器可能问“要打开 UniAI Gateway 吗”，点允许即可。</p>
-    <div class="row">
-      <a class="btn" href="uniai://console">打开 UniAI</a>
-      <a class="btn ghost small" href="http://127.0.0.1:8935/console">备用：打开 http://127.0.0.1:8935/console</a>
-    </div>
-    <p class="note">它会自己在后台起网关、用本机登录态取得管理凭据、按这台机器的账号生成模型目录，然后打开已登录的控制台。</p>
-  </section>
-
-  <!-- 2. 未安装：一行命令 -->
-  <section class="card">
-    <span class="step">2</span>
-    <h2>第一次使用：复制这一行</h2>
-    <p class="note">粘贴到 <strong>PowerShell</strong>（开始菜单搜“PowerShell”，Windows 11 里是“终端”的 PowerShell 标签页），回车。
-       不需要预装 Python / Node / Git，也不需要管理员权限。</p>
-    <div class="cmd" id="cmd"><button class="btn small copy" onclick="copyCmd()">复制</button><span id="cmdtext">[Net.ServicePointManager]::SecurityProtocol='Tls12'; $ProgressPreference='SilentlyContinue'; iwr -Uri https://github.com/Buer5460/uniai-gateway-setup/releases/download/v0.8.0/UniAI-Setup-0.8.0-windows-x64.exe -OutFile $env:TEMP\UniAI-Setup.exe -UseBasicParsing; Start-Process -FilePath $env:TEMP\UniAI-Setup.exe -ArgumentList '--silent','--dir',"$env:LOCALAPPDATA\UniAI Gateway",'--launch' -Wait</span></div>
-    <p class="note">这一行做三件事：下载安装包 → 静默安装到 <code>%LOCALAPPDATA%\UniAI Gateway</code>（端口自动挑第一个空闲的，从 8935 开始）→ 装完直接打开控制台。</p>
-  </section>
-
-  <!-- 3. 下载安装包 -->
-  <section class="card">
-    <span class="step">3</span>
-    <h2>或者，下载安装包双击运行</h2>
-    <p class="note">适合断网机器、给同事装机、或需要自定义安装目录和端口的场景（安装向导里可以改）。</p>
-    <div class="row">
-      <a class="btn ghost" href="https://github.com/Buer5460/uniai-gateway-setup/releases/download/v0.8.0/UniAI-Setup-0.8.0-windows-x64.exe">下载 UniAI-Setup-0.8.0-windows-x64.exe</a>
-    </div>
-    <table style="margin-top:14px">
-      <tr><th style="width:130px">文件大小</th><td>59,526,414 字节（56.8 MiB）</td></tr>
-      <tr><th>SHA256</th><td><code>b6dbaa1d5337cb1da065cbaa9c4747cc7959314013d770f99ea782b90c753c7a</code></td></tr>
-      <tr><th>适用系统</th><td>Windows 10 / 11，x64</td></tr>
-    </table>
-  </section>
-
-  <!-- 4. 实测范围 -->
-  <section class="card">
-    <h2>实测支持范围与限制</h2>
-    <table>
-      <tr><th style="width:180px">已实测通过</th><td>
-        Windows 11 中文版，标准用户权限（<span class="tag ok">无需管理员</span>）<br>
-        静默安装 / 向导安装 → 桌面、开始菜单、开机自启入口 → 卸载全部可逆<br>
-        <code>uniai://console</code> 协议唤起：后台启动 + 自动取得本机凭据 + 按本机账号生成模型目录 + 打开控制台（约 17 秒）<br>
-        安装完成后可不依赖 Python / Node / Git 独立运行
-      </td></tr>
-      <tr><th>未验证</th><td>
-        <span class="tag warn">标注</span>
-        Windows 10 及更早版本、非中文系统界面、ARM 机型、企业策略/杀软拦截注册表写入的场景<br>
-        网页按钮在 Safari / Firefox 下唤起协议的行为（Chrome / Edge 已实测）
-      </td></tr>
-      <tr><th>已知限制</th><td>
-        网关只监听 <code>127.0.0.1</code>，不给局域网或公网访问；模型目录由目标机器上的客户端配置与本机登录态现场核验生成，安装包本身不含任何模型清单或密钥<br>
-        卸载可在“设置 → 应用”里完成，数据与模型目录默认保留，可勾选清除
-      </td></tr>
-    </table>
-  </section>
-
-  <footer>本页面只提供安装入口与下载，不收集任何信息。</footer>
-</div>
-
+<body><main class="wrap">
+<header><span class="tag">Windows x64 · 安装修复版 fix.2</span><h1>新电脑，一行安装 UniAI。</h1><p class="muted">下载安装、准备应用运行库、启动后台、打开本机控制台。用户不用手工配置开发环境。</p></header>
+<section class="card"><h2>第一次使用：复制到 PowerShell</h2><p>按 <strong>Win + R</strong>，输入 <code>powershell</code> 并回车。复制下面整行，粘贴到新窗口后回车。</p><p class="note">使用当前用户安装，不要求先安装 Python、Node 或 Git。必要 Python 运行库随应用一起安装；本版本运行不需要 Node。</p>
+<pre class="command" id="command">$ErrorActionPreference='Stop'; [Net.ServicePointManager]::SecurityProtocol=[Net.SecurityProtocolType]::Tls12; &amp; ([scriptblock]::Create((Invoke-WebRequest -UseBasicParsing -TimeoutSec 60 -Uri 'https://raw.githubusercontent.com/Buer5460/uniai-gateway-setup/5c100abdc21734206286e2d31c67ba7644c7bdd4/install.ps1').Content))</pre>
+<div class="row"><button class="btn" id="copy" type="button">复制安装命令</button><span id="copy-status" class="note" role="status"></span></div>
+<p class="note">窗口依次显示 1/5 到 5/5：环境检查 → 下载与校验 → 安装 → 启动 → 控制台。不要同时重复启动。下载需要能访问 GitHub；出错会停止并显示日志位置。</p>
+</section>
+<section class="card"><h2>也可以下载安装包，双击运行</h2><p>旧 <code>0.8.0</code> 安装器存在双击直接退出的问题，请使用下面带 <strong>installer-fix.2</strong> 的新文件。</p><p><a class="btn secondary" href="https://github.com/Buer5460/uniai-gateway-setup/releases/download/v0.8.0-installer-fix.2/UniAI-Setup-0.8.0-installer-fix.2-windows-x64.exe">下载 Windows x64 修复版</a></p><details><summary>文件完整性与版本</summary><p class="note">59,626,978 字节。版本：0.8.0 / installer-fix.2。安装脚本在执行前强制检查以下 SHA-256：</p><code>8209f31d7e7f312f20922d124a7f97c818874c5b330c84f462060ae73c5ee586</code></details></section>
+<section class="card"><h2>已经安装？打开自己的 UniAI</h2><a class="btn" href="uniai://console">打开 UniAI</a><p class="note">首次唤起可能需要浏览器确认。这个按钮启动的是当前电脑上的程序，不连接其他人的电脑。还未安装时请先使用上方安装入口。</p><p>空白电脑没有模型账号时，控制台可以打开，但仍需登录自己的模型来源或添加自己的 API Key。安装包不附带模型账号、额度或他人的密钥。</p></section>
+<section class="card"><h2>实际验证范围</h2><table><tr><th>已执行</th><td>独立 Windows Server 2022 虚拟机；空应用配置；中文和空格路径；安装阶段 PATH 中无 Python、Node、Git。验证了实际安装向导、安装、后台运行、控制台资源、重复执行、卸载，以及两个全新 Edge 浏览器会话中的控制台显示与授权。</td></tr><tr><th>未覆盖</th><td>并非所有 Windows 10/11 物理机都已验证；ARM、32 位系统不支持；企业限制、网络不可达、杀毒拦截等不能被安装器绕过。当前用户模式不等于已实测所有普通权限账户。</td></tr><tr><th>安全</th><td>本修复版暂未代码签名。哈希校验用于完整性，不等同于可信发布者签名。遇到 Windows 或企业安全拦截请停止，不要关闭安全防护。本机网关只监听回环地址。</td></tr></table>
+<p class="note"><a href="https://github.com/Buer5460/uniai-gateway-setup/actions/runs/35840299530">查看实际 Windows 验证</a> · <a href="https://github.com/Buer5460/uniai-gateway-setup/releases/tag/v0.8.0-installer-fix.2">安装包与原始验证结果</a></p>
+</section><footer>必要依赖由软件准备，账号授权由本人完成。已有非空目录或旧版本配置不会被一行安装脚本盲目覆盖；失败会显示原因，而不是仅凭退出码 0 宣称成功。</footer>
+</main>
 <script>
-function copyCmd(){
-  var text = document.getElementById('cmdtext').innerText;
-  navigator.clipboard.writeText(text).then(function(){
-    var b = document.querySelector('.copy'); var old = b.innerText;
-    b.innerText = '已复制'; setTimeout(function(){ b.innerText = old; }, 1600);
-  });
-}
-</script>
-</body>
-</html>
+document.getElementById('copy').addEventListener('click',async function(){const s=document.getElementById('copy-status');try{await navigator.clipboard.writeText(document.getElementById('command').textContent.trim());s.textContent='已复制：到 PowerShell 粘贴并按回车。';}catch(e){s.textContent='浏览器未允许复制，请手动选中上方整行复制。';}});
+</script></body></html>
