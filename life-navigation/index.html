@@ -1,0 +1,65 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>人生导航｜AI 决策原型</title>
+<style>
+:root{--bg:#f6f8fb;--card:#fff;--text:#18212f;--muted:#6b7280;--line:#e5e7eb;--blue:#2563eb;--soft:#eef4ff;--shadow:0 10px 30px rgba(20,30,55,.08)}
+*{box-sizing:border-box}body{margin:0;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Microsoft YaHei",Arial,sans-serif;background:radial-gradient(circle at 10% 0%,rgba(37,99,235,.08),transparent 28%),var(--bg);color:var(--text)}
+.wrap{max-width:1100px;margin:auto;padding:28px 18px 56px}.hero{background:linear-gradient(135deg,#0f172a,#1d4ed8 70%,#2563eb);color:#fff;border-radius:26px;padding:34px;box-shadow:var(--shadow)}
+.badge{display:inline-block;padding:7px 11px;border-radius:999px;background:rgba(255,255,255,.12);font-size:13px;margin-bottom:14px}h1{font-size:38px;margin:0 0 12px}.hero p{margin:0;line-height:1.8;color:rgba(255,255,255,.88)}
+.grid{display:grid;grid-template-columns:1.05fr .95fr;gap:20px;margin-top:20px}.card{background:var(--card);border:1px solid var(--line);border-radius:20px;padding:22px;box-shadow:var(--shadow)}h2{margin:0 0 8px;font-size:22px}.sub,.small{color:var(--muted);font-size:13px;line-height:1.7}
+textarea{width:100%;min-height:150px;border:1px solid var(--line);border-radius:15px;padding:15px;font-size:16px;line-height:1.7;resize:vertical;outline:none;background:#fbfdff;margin-top:14px}textarea:focus{border-color:#93b4ff;box-shadow:0 0 0 4px rgba(37,99,235,.08)}
+.row{display:flex;gap:9px;flex-wrap:wrap;margin-top:14px}button,.chip{border:0;border-radius:12px;padding:11px 15px;font-size:14px;cursor:pointer}.primary{background:var(--blue);color:#fff;font-weight:700}.ghost{background:#f3f6fa;color:#334155;border:1px solid var(--line)}.chip{background:#f8fafc;border:1px solid var(--line);color:#475569}.chip:hover{color:#1d4ed8;border-color:#9dbaf7}
+.mini{display:flex;gap:11px;align-items:flex-start;padding:12px;border:1px solid var(--line);border-radius:13px;margin-top:9px}.ico{width:34px;height:34px;border-radius:10px;background:#eff4ff;display:flex;align-items:center;justify-content:center;flex:0 0 34px}
+.result{display:none;margin-top:20px}.status{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin:16px 0}.stat{background:#f8fafc;border:1px solid var(--line);border-radius:13px;padding:12px}.stat b{display:block;font-size:12px;color:var(--muted);margin-bottom:5px}
+.summary{border-left:4px solid var(--blue);background:var(--soft);padding:16px 18px;border-radius:12px;line-height:1.8;margin:0 0 18px}.title{font-size:18px;font-weight:800;margin:18px 0 12px}
+.paths{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}.path{border:1px solid var(--line);border-radius:15px;padding:15px}.path h3{font-size:16px;margin:0 0 8px}.path p{font-size:13px;line-height:1.7;color:#4b5563}.pill{display:inline-block;font-size:12px;border-radius:999px;padding:5px 8px;background:#eaf1ff;color:#1d4ed8;margin:2px 4px 2px 0}
+.meter{height:8px;background:#edf0f4;border-radius:999px;overflow:hidden;margin:8px 0 4px}.meter i{display:block;height:100%;background:linear-gradient(90deg,#93c5fd,#2563eb)}
+.risk{background:#fff7ed;border:1px solid #fed7aa;border-radius:13px;padding:14px;line-height:1.7}.action{display:flex;gap:12px;align-items:flex-start;border:1px solid var(--line);padding:12px;border-radius:13px;margin-top:9px}.num{width:30px;height:30px;border-radius:50%;background:#eaf1ff;color:#1d4ed8;display:flex;align-items:center;justify-content:center;font-weight:800;flex:0 0 30px}
+.note{margin-top:14px;padding:13px;background:#f8fafc;border:1px dashed #cbd5e1;border-radius:13px;color:#475569;font-size:13px;line-height:1.7}.footer{text-align:center;color:var(--muted);font-size:12px;margin-top:20px}
+@media(max-width:850px){.grid,.paths{grid-template-columns:1fr}.status{grid-template-columns:repeat(2,1fr)}h1{font-size:30px}}
+</style>
+</head>
+<body><div class="wrap">
+<section class="hero"><div class="badge">🧭 人生导航 · 公网体验版</div><h1>不知道下一步怎么办的时候，先来这里。</h1><p>不是算命，也不替你决定人生。把模糊的“我很迷茫”，拆成可比较的路径、风险和下一步行动。</p></section>
+<div class="grid">
+<section class="card"><h2>1. 先说说你现在的情况</h2><div class="sub">像跟朋友说话一样写：年龄、工作、收入、最困扰你的事、你最怕什么。</div>
+<textarea id="input" placeholder="例如：我25岁，工作两年，月薪6000，感觉没前途，想辞职又不知道能做什么，也不敢创业。"></textarea>
+<div class="row"><button class="primary" onclick="analyze()">开始导航</button><button class="ghost" onclick="clearAll()">清空</button></div>
+<div class="row"><button class="chip" onclick="preset(1)">25岁想辞职</button><button class="chip" onclick="preset(2)">18岁不知道读书还是工作</button><button class="chip" onclick="preset(3)">失业了</button><button class="chip" onclick="preset(4)">想创业</button><button class="chip" onclick="preset(5)">想出国</button></div>
+</section>
+<section class="card"><h2>它不是给答案，而是帮你看清楚</h2>
+<div class="mini"><div class="ico">🎯</div><div><b>你真正的问题是什么</b><div class="sub">先区分收入、能力、情绪、关系、健康、风险。</div></div></div>
+<div class="mini"><div class="ico">🛣️</div><div><b>你现在有哪些路</b><div class="sub">不是一条路，而是 3～5 条可以比较的路径。</div></div></div>
+<div class="mini"><div class="ico">⚖️</div><div><b>每条路的代价是什么</b><div class="sub">钱、时间、精力、失败成本、选择权。</div></div></div>
+<div class="mini"><div class="ico">✅</div><div><b>今天先做什么</b><div class="sub">把“大决定”变成一周内能完成的小验证。</div></div></div>
+</section></div>
+<section class="card result" id="result"><h2>2. 你的当前导航结果</h2><div class="status" id="status"></div><div class="summary" id="summary"></div>
+<div class="title">可考虑的 3 条路径</div><div class="paths" id="paths"></div><div class="title">暂时不要急着做</div><div class="risk" id="risk"></div>
+<div class="title">这周只做 3 件事</div><div id="actions"></div>
+<div class="note"><b>体验版说明：</b>当前是前端规则原型，不会上传你的输入。正式版可接入 HowToLiveBetter 知识库和 AI，把建议关联到证据等级、成本、收益和原始来源。</div></section>
+<div class="footer">人生导航 / AI 决策助手 · 一般信息与决策整理工具，不替代医生、律师、会计等专业人士。</div>
+</div>
+<script>
+var presets={
+1:"我25岁，工作两年，月薪6000，觉得每天重复、没前途，想辞职，但不知道自己能做什么。手里有3万元存款，也担心辞职后找不到工作。",
+2:"我18岁，高中成绩一般，不知道应该继续读书、上职业学校，还是直接去打工。家里条件普通，希望早点赚钱。",
+3:"我刚失业，原来月薪8000，现在没有收入。手里大概能撑4个月，比较焦虑，不知道先找工作、学技能，还是做点小生意。",
+4:"我想创业，但还没有特别确定的项目。现在有工作，有10万元存款。看到很多AI项目，担心错过机会，也怕把钱亏掉。",
+5:"我想出国，主要是觉得国内工作机会一般。考虑留学、工作或者先学语言，但不知道哪条路适合我，也担心花很多钱没结果。"
+};
+function preset(n){document.getElementById("input").value=presets[n];analyze()}
+function clearAll(){document.getElementById("input").value="";document.getElementById("result").style.display="none"}
+function any(t,a){for(var i=0;i<a.length;i++)if(t.indexOf(a[i])>-1)return true;return false}
+function D(type){
+if(type==="career")return {s:[["当前状态","需要澄清"],["最大目标","提高选择权"],["决策原则","先验证后重投入"],["时间尺度","先看未来7天"]],sum:"你现在最需要解决的，不是“辞不辞职”，而是先验证：<b>有没有一条比当前工作更值得投入的替代路径</b>。替代路径还没被验证前，辞职会把职业迷茫叠加成现金流焦虑。",p:[["A｜保留工作 + 业余验证","低风险","先不辞职，用2～4周测试2个可能方向。重点接触真实岗位、真实客户、真实任务。",30],["B｜内部换岗 / 换公司","中风险","如果问题主要是当前岗位，可以先测试同技能的不同岗位与公司。",50],["C｜职业转型","中高投入","先通过小项目、兼职、作品集或真实招聘要求验证，再决定是否全职转向。",70]],r:"暂时不要因为情绪最差的一天就直接裸辞，也不要一开始就花几万元报名所谓“包就业”的课程。先验证方向，再投入。",a:["找3个你可能愿意做的方向，每个方向收集20个真实招聘岗位。","记录这60个岗位反复出现的技能、学历、经验和薪资。","从最容易验证的方向做一个3小时以内的小任务或作品。"]};
+if(type==="unemployed")return {s:[["当前状态","现金流优先"],["最大目标","延长安全期"],["决策原则","先稳住再升级"],["时间尺度","未来30天"]],sum:"失业以后先分两层：<b>第一层是现金流和保障，第二层才是职业升级。</b> 两者混在一起，容易在焦虑中同时做出借钱培训、追热点和重投入创业等决定。",p:[["A｜快速恢复收入","优先级高","先找与你原经验最接近、最快能恢复收入的岗位。",35],["B｜边求职边升级","平衡方案","白天求职，每天固定1～2小时学习或做项目。",50],["C｜小项目验证","谨慎","只做低投入、能快速得到市场反馈的尝试。",65]],r:"不要在收入中断时同时叠加高额培训费、消费贷、加盟费或重资产创业。",a:["把现有存款换算成还能撑几个月，定最低生活预算。","今天更新简历并投递10个与你过去经验最接近的岗位。","把想学的技能和30个招聘岗位对照，只学反复出现的前三项。"]};
+if(type==="startup")return {s:[["当前状态","机会很多"],["最大风险","过早重投入"],["决策原则","验证大于想象"],["时间尺度","7～14天实验"]],sum:"现在不需要先决定“创不创业”，而要先判断：<b>有没有人愿意为这个问题付钱。</b> 早期最重要的不是公司、Logo和大系统，而是低成本验证真实需求。",p:[["A｜保留工作 + 周末验证","低风险","先做Demo、找用户、跑一轮真实反馈。",25],["B｜服务型 MVP","现金流型","先用人工+AI+表格跑服务，验证客户是否愿意付钱。",45],["C｜全职创业","高风险","有客户、付费或明显需求证据后，再考虑离职和扩大投入。",85]],r:"暂时不要先注册一堆公司、囤设备、做大而全的平台，也不要把“AI很火”直接当成需求。",a:["用一句话写清：我帮谁解决什么问题，为什么他愿意付钱。","找10个目标用户真实沟通，只问过去行为，不问“你会不会买”。","做一个最小可用版本，人工也可以，只要能完成一次真实交付。"]};
+if(type==="education")return {s:[["当前状态","路径选择期"],["最大目标","扩大未来选择"],["决策原则","别只看眼前工资"],["时间尺度","比较3～5年"]],sum:"18岁左右的选择不能只比较现在能不能赚钱，还要比较未来几年能获得的<b>学历门槛、技能、行业入口和重新选择的机会</b>。",p:[["A｜继续正规教育","长期回报","比较专业、学费和毕业后的真实岗位。",60],["B｜职业教育 / 技能路线","实践导向","重点核实学校资质、专业就业出口和实训质量。",45],["C｜直接工作 + 后续提升","短期收入快","可以选，但最好同时保留继续学习、考证或转技能的通道。",40]],r:"不要仅因为想早点挣钱，就把未来几十年的职业门槛换成眼前几个月工资；也不要忽略学费、专业和就业出口。",a:["列出你能走的3条真实路径：学校/专业、职教/技能、工作岗位。","每条路径查3年总成本、入行门槛和真实招聘要求。","找至少3个已经走过这些路径的人，问现在的工作和后悔点。"]};
+if(type==="abroad")return {s:[["当前状态","目标未拆分"],["最大问题","出国目的不清"],["决策原则","先确定目的"],["时间尺度","先做信息核验"]],sum:"“想出国”不是完整目标。先区分真正想得到的是：<b>更高收入、学历、身份、生活体验，还是离开当前环境</b>。不同目的对应完全不同的国家、签证、预算和风险。",p:[["A｜留学","高投入","比较总成本、学校认证、专业就业和合法工作路径。",80],["B｜合法就业","目标直接","重点看雇主与中介资质、许可、合同、保险。",55],["C｜国内准备后再出发","低风险","先学语言、积累技能和申请准备，目标明确后再大额投入。",35]],r:"目的地、签证、预算上限和退路没弄清前，不要先交大额中介费或学费。警惕“旅游签过去再转工作”“高薪包办”。",a:["先写清出国最想换回的1个东西：收入、学历、身份或生活体验。","只选2个国家，对比总成本、合法工作条件、签证和去留。","把语言、学历、技能、预算分别打分，找出最大短板。"]};
+return {s:[["当前状态","需要澄清"],["最大目标","提高选择权"],["决策原则","先验证后重投入"],["时间尺度","未来30天"]],sum:"先不要试图一次解决整个人生。第一步是找出<b>未来30天最影响你的那个问题</b>，然后只对它做一次低成本验证。",p:[["A｜维持现状 + 收集信息","低风险","信息不足时先避免不可逆决定。",25],["B｜做一次小实验","可验证","用一周测试一个方向，而不是先做长期承诺。",45],["C｜重大改变","高不确定性","只有信息和验证足够时再考虑。",80]],r:"信息不足时，尽量不要先做不可逆、高负债、高投入的决定。",a:["写下现在最困扰的3件事。","选出未来30天解决后帮助最大的1件。","为这件事设计一个7天内能完成的小验证。"]}}
+function analyze(){var t=document.getElementById("input").value.trim();if(!t){alert("先写一句你现在最困扰的事情。");return}var type="general";if(any(t,["辞职","工作","月薪","上班","职业","没前途"]))type="career";if(any(t,["失业","裁员","没收入"]))type="unemployed";if(any(t,["创业","项目","生意","开店","AI项目"]))type="startup";if(any(t,["18岁","读书","职校","大学","高中","打工"]))type="education";if(any(t,["出国","留学","国外","海外","语言"]))type="abroad";render(D(type))}
+function render(d){var h="",i;for(i=0;i<d.s.length;i++)h+='<div class="stat"><b>'+d.s[i][0]+'</b><span>'+d.s[i][1]+'</span></div>';document.getElementById("status").innerHTML=h;document.getElementById("summary").innerHTML=d.sum;h="";for(i=0;i<d.p.length;i++)h+='<div class="path"><h3>'+d.p[i][0]+'</h3><span class="pill">'+d.p[i][1]+'</span><p>'+d.p[i][2]+'</p><div class="small">综合投入 / 风险</div><div class="meter"><i style="width:'+d.p[i][3]+'%"></i></div></div>';document.getElementById("paths").innerHTML=h;document.getElementById("risk").innerHTML=d.r;h="";for(i=0;i<d.a.length;i++)h+='<div class="action"><div class="num">'+(i+1)+'</div><div><b>'+d.a[i]+'</b></div></div>';document.getElementById("actions").innerHTML=h;var r=document.getElementById("result");r.style.display="block";setTimeout(function(){r.scrollIntoView({behavior:"smooth",block:"start"})},100)}
+</script></body></html>
