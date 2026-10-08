@@ -1,4 +1,12 @@
-# 卸载与回滚（1.0.0-rc1）
+# 卸载与回滚（1.0.0-rc2）
+
+安装根目录：`%LOCALAPPDATA%\UniAI`
+
+| 目录 | 内容 | 升级时 | 卸载时 |
+| --- | --- | --- | --- |
+| `app` | 程序文件 | 整体替换（先备份到 `app.previous`） | 删除 |
+| `data` | 数据库、密钥、Vault、日志 | **永不删除** | 默认保留，需你明确选择才删 |
+| `runtime` | Python / Node / Qoder CLI | 保留复用 | 删除 |
 
 ## 一、卸载 UniAI Gateway
 
@@ -50,9 +58,12 @@ Copy-Item $backup.FullName provider_config.json
 
 | 目标 | 做法 |
 | --- | --- |
+| 回到 RC1 安装包 | 下载 https://github.com/Buer5460/uniai-gateway-setup/releases/tag/v1.0.0-rc1 后重新执行 `install.ps1` |
 | 回到 V1 功能收口版本 | `git checkout uniai-entitlement-v1-pass`（commit `b8a271b`） |
 | 回到 Qoder 冻结版本 | `git checkout uniai-qoder-entitlement-pass`（commit `d5d88ae`） |
 | 只是关掉额外付费 | 控制台首页「禁止额外付费」开关保持开启即可，无需换版本 |
+
+安装失败自动回滚：升级前程序目录会先备份为 `app.previous`，任一阶段失败自动还原并再次验证旧版本能提供服务（安装窗口会显示 `ROLLBACK_RESTORED` / `ROLLBACK_HEALTH_OK`）。
 
 ## 四、回滚后如何确认
 
