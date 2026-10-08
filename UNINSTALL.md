@@ -1,4 +1,4 @@
-# 卸载与回滚（1.0.0-rc2）
+# 卸载与回滚（1.0.0-rc3）
 
 安装根目录：`%LOCALAPPDATA%\UniAI`
 
@@ -58,7 +58,7 @@ Copy-Item $backup.FullName provider_config.json
 
 | 目标 | 做法 |
 | --- | --- |
-| 回到 RC1 安装包 | 下载 https://github.com/Buer5460/uniai-gateway-setup/releases/tag/v1.0.0-rc1 后重新执行 `install.ps1` |
+| 回到 RC1 安装包 | 下载 https://github.com/Buer5460/uniai-gateway-setup/releases/tag/v1.0.0-rc2 后重新执行 `install.ps1` |
 | 回到 V1 功能收口版本 | `git checkout uniai-entitlement-v1-pass`（commit `b8a271b`） |
 | 回到 Qoder 冻结版本 | `git checkout uniai-qoder-entitlement-pass`（commit `d5d88ae`） |
 | 只是关掉额外付费 | 控制台首页「禁止额外付费」开关保持开启即可，无需换版本 |

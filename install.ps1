@@ -34,9 +34,9 @@ param(
 $ErrorActionPreference = 'Continue'
 $ProgressPreference = 'SilentlyContinue'
 
-$ProductVersion = '1.0.0-rc2'
-$ZipUrl = 'https://github.com/Buer5460/uniai-gateway-setup/releases/download/v1.0.0-rc2/uniai-gateway-1.0.0-rc2-windows-x64.zip'
-$ZipSha256 = '1620fc4b1e05ad4de2b122581f52a446aadc7ed89c88135db7c3a95e19f0221f'
+$ProductVersion = '1.0.0-rc3'
+$ZipUrl = 'https://github.com/Buer5460/uniai-gateway-setup/releases/download/v1.0.0-rc3/uniai-gateway-1.0.0-rc3-windows-x64.zip'
+$ZipSha256 = '2728e9d407f8975765299eadcd614117e957656b79413325a17ea5cb332c2776'
 $NodeZipName = 'node-v22.23.3-win-x64.zip'
 $NodeSha256 = '2b0ff57b049cda1bbcea2240eec20467018713c1efe1f7360c2681859b90ed71'
 
@@ -342,8 +342,27 @@ if (Test-Path $tokenFile -and $bootstrapState -and -not $bootstrapState.initiali
 if (-not $adminKey) { Say 'no new admin key claimed (browser session will)' }
 else { $headers['Authorization'] = "Bearer $adminKey" }
 
-Start-Process "http://127.0.0.1:$Port/setup" | Out-Null
-Say "console: http://127.0.0.1:$Port/setup"
+# Every user-facing entry point comes from one helper: the gateway already
+# knows its port, and it refuses to answer unless the service is healthy.
+$consoleUrl = $null
+$openScript = Join-Path $AppDir 'scripts/console_url.py'
+for ($i = 0; $i -lt 10 -and -not $consoleUrl; $i++) {
+    $raw = & $pyExe $openScript "$Port" 2>$null
+    if ($LASTEXITCODE -eq 0 -and $raw) { $consoleUrl = ([string]$raw).Trim() }
+    else { Start-Sleep -Seconds 2 }
+}
+if (-not $consoleUrl) {
+    # Fall back to the local helper so the user still gets the right URL even
+    # if the packaged helper cannot resolve the port from here.
+    $consoleUrl = "http://127.0.0.1:$Port/console/#/"
+}
+if ($healthy) {
+    if ($consoleUrl) { Start-Process $consoleUrl | Out-Null; Ok "console opened: $consoleUrl" }
+}
+else {
+    Warn 'UniAI installed, but the service did not answer /health - start UniAI and open the console again.'
+}
+Say "console url: $consoleUrl"
 
 $state = $null
 if ($adminKey) {
@@ -386,6 +405,6 @@ Write-Host " program      : $AppDir"
 Write-Host " data         : $DataDir  (never deleted by install/upgrade)"
 Write-Host " runtime      : $RunDir   (python / node / qoder CLI)"
 Write-Host " gateway      : http://127.0.0.1:$Port"
-Write-Host " console      : http://127.0.0.1:$Port/setup"
+Write-Host " open         : $consoleUrl"
 Write-Host " paid_enabled : false  (no extra cost by default)"
 Write-Host '===============================================================' -ForegroundColor Green
