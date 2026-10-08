@@ -2,94 +2,68 @@
 <#
     UniAI Gateway - one-line installer for Windows (no Python / Node / Git needed).
 
-    Guarantees enforced here (V1 RC2):
-      * the main package is verified by SHA256 before anything is touched;
-      * Node ships inside the same verified package - no un-pinned download;
-      * program (app) and user data live in different directories and an
-        upgrade NEVER deletes data;
-      * running this twice is safe and verifiable (REINSTALL_IDEMPOTENT_PASS);
-      * any failure after the app is swapped restores app.previous and proves
-        the previous version still serves /health.
+    RC4 fixes, every one of them found by installing on a real machine:
 
-    Layout:
-      <InstallDir>\app        program files (replaceable)
-      <InstallDir>\app.previous  previous program files (rollback source)
-      <InstallDir>\data       database, keys, vault, logs  (never deleted here)
-      <InstallDir>\runtime    python / node / qoder CLI    (persistent)
+      * canonical install root. RC3 defaulted to %LOCALAPPDATA%\UniAI although
+        the real installation was %LOCALAPPDATA%\UniAI Gateway, called that a
+        clean install and built a second one next to it. The root is now
+        resolved by scripts/uniai_home.py (install.json / data / historical
+        default) and an existing installation is migrated, never duplicated.
+      * no Python snippets through PowerShell strings. scripts/python_runtime_check.py
+        and scripts/pip_bootstrap.py are real files with real exit codes; a
+        failed runtime check stops the install instead of printing and moving on.
+      * every Test-Path stands in its own parentheses, so no
+        ParameterBindingException can reach the log.
+      * the browser is opened by scripts/console_url.py only after GET /health
+        answers status=ok, and uniai://console is registered so the public page
+        launches the launcher instead of a raw URL.
+
+    Layout under the canonical root:
+      app                   program files (replaceable)
+      app.previous          previous program files (rollback source)
+      data                  database, keys, vault, logs - never deleted here
+      runtime               python / node / qoder CLI - persistent
+      legacy-program-backup previous program of a 0.8.0 install, archived only
+                            after the replacement has proven /health
 
     Run it with (one line):
       irm https://buer5460.github.io/uniai-gateway-setup/install.ps1 | iex
 #>
 param(
-    [string]$InstallDir = (Join-Path $env:LOCALAPPDATA 'UniAI'),
-    [int]$Port = 8935,
+    [string]$InstallDir = '',
+    [int]$Port = 0,
     [switch]$SkipQoder,
     [switch]$SkipZCode,
-    # Self-test hook only: force a failure right after the given stage so the
-    # rollback path can be exercised end to end. Never used in normal installs.
-    [ValidateSet('', 'deps', 'migrate', 'health')]
+    [switch]$NoOpen,
+    # Self-test hook only. Never used in a normal install.
+    [ValidateSet('', 'extract', 'deps', 'migrate', 'health')]
     [string]$FailAt = ''
 )
 
 $ErrorActionPreference = 'Continue'
 $ProgressPreference = 'SilentlyContinue'
 
-$ProductVersion = '1.0.0-rc3'
-$ZipUrl = 'https://github.com/Buer5460/uniai-gateway-setup/releases/download/v1.0.0-rc3/uniai-gateway-1.0.0-rc3-windows-x64.zip'
-$ZipSha256 = '2728e9d407f8975765299eadcd614117e957656b79413325a17ea5cb332c2776'
+$ProductVersion = '1.0.0-rc4'
+$ZipUrl = 'https://github.com/Buer5460/uniai-gateway-setup/releases/download/v1.0.0-rc4/uniai-gateway-1.0.0-rc4-windows-x64.zip'
+$ZipSha256 = '99a511f8aba6361ab0e0126ea4f20c839d3e79dd323a3fe80ca7aaf2fdfbb7cd'
 $NodeZipName = 'node-v22.23.3-win-x64.zip'
 $NodeSha256 = '2b0ff57b049cda1bbcea2240eec20467018713c1efe1f7360c2681859b90ed71'
 
-$AppDir = Join-Path $InstallDir 'app'
-$PrevDir = Join-Path $InstallDir 'app.previous'
-$DataDir = Join-Path $InstallDir 'data'
-$RunDir = Join-Path $InstallDir 'runtime'
-$StageDir = Join-Path $InstallDir '_stage'
+Add-Type -AssemblyName System.IO.Compression.FileSystem
+
+$script:ErrorSeed = $Error.Count
+$script:Stamp = Get-Date -Format 'yyyyMMdd-HHmmss'
 
 function Say($msg) { Write-Host "[uniai] $msg" }
 function Ok($msg) { Write-Host "[uniai] OK: $msg" -ForegroundColor Green }
 function Warn($msg) { Write-Host "[uniai] $msg" -ForegroundColor Yellow }
-
-Add-Type -AssemblyName System.IO.Compression.FileSystem
-
-function Remove-Dir([string]$path) {
-    if (Test-Path $path) { [System.IO.Directory]::Delete($path, $true) }
-}
-
-function Get-Sha256([string]$path) {
-    return (Get-FileHash -Path $path -Algorithm SHA256).Hash.ToLower()
-}
-
-function Start-Gateway([string]$app, [int]$healthTimeout = 90) {
-    $py = Join-Path $RunDir 'python/python.exe'
-    if (-not (Test-Path $py)) { return $false }
-    $env:UNIAI_DATA_DIR = $DataDir
-    $env:UNIAI_PORT = "$Port"
-    $env:UNIAI_ROUTING_PAID_ENABLED = '0'
-    $nodeExe = Join-Path $RunDir 'node/node.exe'
-    if (Test-Path $nodeExe) { $env:UNIAI_QODER_NODE = $nodeExe }
-    $env:UNIAI_RUNTIME_DIR = $RunDir
-    Start-Process -FilePath $py -WorkingDirectory $app -WindowStyle Hidden `
-        -ArgumentList @('-m', 'runtime.child', '--host', '127.0.0.1', '--port', "$Port") | Out-Null
-    for ($i = 0; $i -lt $healthTimeout; $i++) {
-        Start-Sleep -Seconds 1
-        try {
-            Invoke-RestMethod -Uri "http://127.0.0.1:$Port/health" -TimeoutSec 3 | Out-Null
-            return $true
-        }
-        catch { }
-    }
-    return $false
-}
+function Remove-Dir([string]$path) { if (Test-Path $path) { [System.IO.Directory]::Delete($path, $true) } }
+function Get-Sha256([string]$path) { return (Get-FileHash -Path $path -Algorithm SHA256).Hash.ToLower() }
 
 function Move-DirReplace([string]$src, [string]$dst) {
     if (-not (Test-Path $src)) { throw "[uniai] move source missing: $src" }
     for ($i = 0; $i -lt 15; $i++) {
-        try {
-            Remove-Dir $dst
-            [System.IO.Directory]::Move($src, $dst)
-            return
-        }
+        try { Remove-Dir $dst; [System.IO.Directory]::Move($src, $dst); return }
         catch { Start-Sleep -Seconds 2 }
     }
     throw "[uniai] cannot move '$src' -> '$dst' (still in use?)"
@@ -98,313 +72,532 @@ function Move-DirReplace([string]$src, [string]$dst) {
 function Move-DirNew([string]$src, [string]$dst) {
     if (Test-Path $dst) { throw "[uniai] destination already exists: $dst" }
     for ($i = 0; $i -lt 15; $i++) {
-        try {
-            [System.IO.Directory]::Move($src, $dst)
-            return
-        }
+        try { [System.IO.Directory]::Move($src, $dst); return }
         catch { Start-Sleep -Seconds 2 }
     }
     throw "[uniai] cannot move '$src' -> '$dst' (still in use?)"
 }
 
-function Get-GatewayPid {
-    $pidFile = Join-Path $DataDir 'run/uniai.pid'
-    if (-not (Test-Path $pidFile)) { return $null }
-    $raw = (Get-Content $pidFile -Raw).Trim()
-    if ($raw -like '*{*') {
-        try { return [int](($raw | ConvertFrom-Json).pid) } catch { return $null }
+function Move-ItemQuiet([string]$src, [string]$dst) {
+    try {
+        if (-not (Test-Path $src)) { return $false }
+        if (Test-Path $dst) { return $false }
+        $item = Get-Item -LiteralPath $src -ErrorAction Stop
+        if ($item.PSIsContainer) { [System.IO.Directory]::Move($src, $dst) }
+        else { [System.IO.File]::Move($src, $dst) }
+        return $true
     }
-    try { return [int]$raw } catch { return $null }
+    catch { return $false }
 }
 
-function Wait-PortFree([int]$probePort, [int]$seconds = 40) {
-    for ($i = 0; $i -lt $seconds; $i++) {
-        $busy = $false
-        $client = New-Object System.Net.Sockets.TcpClient
-        try { $client.Connect('127.0.0.1', $probePort); $busy = $true } catch { $busy = $false }
-        finally { try { $client.Close() } catch { } }
-        if (-not $busy) { return $true }
-        Start-Sleep -Seconds 1
-    }
-    return $false
+function Write-AsciiFile([string]$path, [string[]]$lines) {
+    # Written byte-exact through .NET: VBScript reads these files as ANSI, and
+    # a stray line break inside a quoted path silently breaks the launcher.
+    $text = [string]::Join("`r`n", $lines)
+    [System.IO.File]::WriteAllText($path, $text, [System.Text.Encoding]::ASCII)
 }
 
-function Stop-Gateway {
-    # The runtime writes a JSON pid file; older builds wrote a bare number.
-    $procId = Get-GatewayPid
-    if ($procId) {
-        Stop-Process -Id $procId -Force -ErrorAction SilentlyContinue
-        Say "stopped previous gateway pid=$procId"
+<#
+    The machine already has ways of starting UniAI at logon (a Startup folder
+    entry and a scheduled task). They point at the program this install just
+    replaced, so leaving them alone would put a second instance on the same
+    port. They are retargeted at the new runtime - never deleted, never used to
+    start a second gateway during this run.
+#>
+function Set-DurableStart([string]$rootDir, [string]$appDir, [string]$pythonExe, [int]$gwPort) {
+    $starter = Join-Path $rootDir "Start-Gateway-$gwPort.vbs"
+    Write-AsciiFile $starter @(
+        "' UniAI Gateway - silent starter for the scheduled task / logon entry.",
+        "' ASCII only on purpose: VBScript reads this file as ANSI.",
+        "Option Explicit",
+        "Dim sh, exe, workdir, launch, rc",
+        'Set sh = CreateObject("WScript.Shell")',
+        ('exe = "{0}"' -f $pythonExe),
+        ('workdir = "{0}"' -f $appDir),
+        "sh.CurrentDirectory = workdir",
+        ('launch = """" & exe & """ -m runtime.service start --port {0}"' -f $gwPort),
+        "rc = sh.Run(launch, 0, True)",
+        "If rc <> 0 Then",
+        "  WScript.Sleep 4000",
+        "  rc = sh.Run(launch, 0, True)",
+        "End If",
+        "WScript.Quit 0"
+    )
+    $results = @("starter=$starter")
+
+    $startup = [Environment]::GetFolderPath('Startup')
+    if ($startup -and (Test-Path $startup)) {
+        $logon = Join-Path $startup 'UniAI-Gateway.vbs'
+        Write-AsciiFile $logon @(
+            "' UniAI Gateway - logon launcher (hidden, no console window).",
+            "Option Explicit",
+            "Dim shell",
+            'Set shell = CreateObject("WScript.Shell")',
+            ('shell.CurrentDirectory = "{0}"' -f $rootDir),
+            ('shell.Run "wscript.exe //B //NoLogo ""{0}""", 0, False' -f $starter)
+        )
+        $results += "logon=$logon"
     }
-    Start-Sleep -Seconds 1
-    # Leftover children of our own interpreter hold locks on the app directory.
-    Get-Process python, pythonw -ErrorAction SilentlyContinue | ForEach-Object {
+
+    # schtasks.exe is blocked in locked-down shells, so the task is retargeted
+    # through the task scheduler cmdlets instead of a command line.
+    $taskName = "UniAI Gateway $gwPort"
+    $task = Get-ScheduledTask -TaskName $taskName -ErrorAction SilentlyContinue
+    if ($task) {
+        $argument = '//B //NoLogo "' + $starter + '"'
         try {
-            if ($_.Path -and $_.Path.StartsWith((Join-Path $RunDir 'python'))) {
-                Stop-Process -Id $_.Id -Force -ErrorAction SilentlyContinue
-                Say "stopped stray interpreter pid=$($_.Id)"
-            }
+            $action = New-ScheduledTaskAction -Execute 'wscript.exe' -Argument $argument
+            Set-ScheduledTask -TaskName $taskName -Action $action -ErrorAction Stop | Out-Null
+            $results += "task=retargeted:$taskName"
         }
+        catch {
+            try {
+                Disable-ScheduledTask -TaskName $taskName -ErrorAction Stop | Out-Null
+                $results += "task=disabled(kept):$taskName"
+            }
+            catch { $results += "task=UNCHANGED:$($_.Exception.Message)" }
+        }
+    }
+    return ($results -join ' | ')
+}
+
+<#
+    Stop everything this installation owns before the program is swapped.
+
+    Killing only the process that holds the port is not enough: 0.8.0 runs a
+    supervisor beside the gateway, and the supervisor immediately respawns the
+    program this installer just replaced - which is how an upgrade ends up with
+    two instances fighting over the same port.
+#>
+function Stop-OwnProcesses([string]$rootDir) {
+    $killed = @()
+    $targets = @()
+    foreach ($p in (Get-Process -ErrorAction SilentlyContinue)) {
+        if ($p.Id -eq $PID) { continue }
+        $path = ''
+        try { $path = [string]$p.Path } catch { $path = '' }
+        $mine = $false
+        if ($path -and $rootDir) {
+            try { $mine = $path.StartsWith($rootDir, [System.StringComparison]::OrdinalIgnoreCase) }
+            catch { $mine = $false }
+        }
+        if (-not $mine) { $mine = ($p.ProcessName -match '^uniai') }
+        if ($mine) { $targets += $p }
+    }
+    foreach ($p in $targets) {
+        try { Stop-Process -Id $p.Id -Force -ErrorAction Stop; $killed += "$($p.ProcessName)($($p.Id))" }
         catch { }
     }
-    if (Wait-PortFree $Port) { Say "port $Port free" }
-    else { Warn "port $Port still busy - the copy may fail" }
+    if ($killed.Count -gt 0) { Start-Sleep -Seconds 3 }
+    return $killed
 }
 
-function Restore-Previous {
-    Say 'ROLLBACK: restoring previous program directory'
-    Remove-Dir $AppDir
-    Move-DirReplace $PrevDir $AppDir
-    Ok 'ROLLBACK_RESTORED app.previous -> app'
-    if (Start-Gateway $AppDir 60) { Ok 'ROLLBACK_HEALTH_OK previous version serves /health again' }
-    else { Warn 'ROLLBACK_HEALTH_FAIL previous version did not answer /health' }
+function Get-BindingErrors {
+    $recent = @()
+    if ($Error.Count -gt $script:ErrorSeed) {
+        $recent = @($Error[$script:ErrorSeed..($Error.Count - 1)])
+    }
+    return @($recent | Where-Object {
+        ($_.FullyQualifiedErrorId -match 'ParameterBinding') -or
+        ($_.Exception -and $_.Exception.GetType().FullName -match 'ParameterBinding')
+    })
 }
 
-# --------------------------------------------------------------- 0 layout
+# ---------------------------------------------------------- 0 canonical root
 Say "UniAI Gateway $ProductVersion installer"
-foreach ($d in @($InstallDir, $DataDir, $RunDir)) {
+$homePy = $null
+$sourceHome = Join-Path $PSScriptRoot 'scripts/uniai_home.py'
+if (Test-Path $sourceHome) { $homePy = $sourceHome }
+if (-not $homePy) {
+    # One-liner path: fetch the resolver from the same place as the installer.
+    $bootstrapPy = Join-Path $env:TEMP 'uniai-home-bootstrap.py'
+    try {
+        Invoke-WebRequest -Uri 'https://buer5460.github.io/uniai-gateway-setup/uniai_home.py' `
+            -OutFile $bootstrapPy -UseBasicParsing
+        if (Test-Path $bootstrapPy) { $homePy = $bootstrapPy }
+    }
+    catch { }
+}
+if (-not $homePy) { throw '[uniai] cannot locate scripts/uniai_home.py' }
+
+$bootstrapPython = (Get-Command python -ErrorAction SilentlyContinue | Select-Object -First 1).Source
+if (-not $bootstrapPython) { $bootstrapPython = 'python' }
+
+$homeJsonRaw = & $bootstrapPython $homePy '--json' 2>$null
+try { $homeInfo = $homeJsonRaw | ConvertFrom-Json }
+catch { throw "[uniai] cannot read install root information: $homeJsonRaw" }
+if (-not $homeInfo.root) { throw '[uniai] install root could not be determined' }
+
+if ($InstallDir) { $root = $InstallDir } else { $root = $homeInfo.root }
+$AppDir = Join-Path $root 'app'
+$PrevDir = Join-Path $root 'app.previous'
+$DataDir = Join-Path $root 'data'
+$RunDir = Join-Path $root 'runtime'
+$StageDir = Join-Path $root '_stage'
+
+Say "canonical install root: $root (source=$($homeInfo.source), score=$($homeInfo.score), evidence=$($homeInfo.evidence -join ','))"
+if ($homeInfo.has_data) { Ok 'existing data detected - database, keys and vault stay untouched' }
+if ($homeInfo.is_legacy_layout) {
+    Say "legacy 0.8.0 program detected at this root: $($homeInfo.legacy_program -join ', ')"
+    Say 'migration keeps data/keys/vault and only replaces program files'
+}
+if ($homeInfo.has_app) { Say 'existing program directory found - upgrade' }
+else { Say 'no program directory yet - first install into this root' }
+
+if ($Port -gt 0) { $effectivePort = $Port }
+else {
+    $p = & $bootstrapPython $homePy '--port' 2>$null
+    if ("$p" -match '^\d+$') { $effectivePort = [int]$p } else { $effectivePort = 8935 }
+}
+Say "port: $effectivePort"
+
+foreach ($d in @($root, $DataDir, $RunDir)) {
     if (-not (Test-Path $d)) { New-Item -ItemType Directory -Force -Path $d | Out-Null }
 }
-$hadInstall = Test-Path (Join-Path $AppDir 'VERSION')
-if ($hadInstall) { Say "existing installation detected in $AppDir (data stays untouched)" }
-else { Say 'no existing installation - clean install' }
+$hadInstall = (Test-Path (Join-Path $AppDir 'VERSION'))
+$legacyExe = $null
+foreach ($name in @('uniai-agent.exe', 'UniAI.exe')) {
+    $candidate = Join-Path $root $name
+    if ((Test-Path $candidate) -and -not $legacyExe) { $legacyExe = $candidate }
+}
 
 # --------------------------------------------------------------- 1 download
 Say '(1/9) download release package'
 $zip = Join-Path $env:TEMP "uniai-gateway-$ProductVersion.zip"
 if (-not (Test-Path $zip)) {
-    Say "url: $ZipUrl"
     try { Invoke-WebRequest -Uri $ZipUrl -OutFile $zip -UseBasicParsing }
-    catch { Remove-Dir $StageDir; throw "[uniai] download failed: $($_.Exception.Message)" }
+    catch { throw "[uniai] download failed: $($_.Exception.Message)" }
 }
 else { Say "cached: $zip" }
 
 Say '(2/9) verify SHA256'
 $actual = Get-Sha256 $zip
 if ($actual -ne $ZipSha256.ToLower()) {
-    Remove-Dir $StageDir
     throw "[uniai] checksum mismatch expected=$($ZipSha256.ToLower()) actual=$actual"
 }
 Ok "sha256 $actual"
 
 # ---------------------------------------------------------- 3 python runtime
 Say '(3/9) prepare python runtime'
+if (-not (Test-Path (Join-Path $StageDir 'uniai-gateway/VERSION'))) {
+    Remove-Dir $StageDir
+    [System.IO.Compression.ZipFile]::ExtractToDirectory($zip, $StageDir)
+}
+$stageApp = Join-Path $StageDir 'uniai-gateway'
 $pyExe = Join-Path $RunDir 'python/python.exe'
 if (-not (Test-Path $pyExe)) {
-    $stageBundle = Join-Path $StageDir 'uniai-gateway/bootstrap'
-    $bundleDir = if (Test-Path $stageBundle) { $stageBundle }
-                 elseif ($hadInstall) { Join-Path $AppDir 'bootstrap' }
-                 else { $null }
-    if (-not $bundleDir) {
-        # nothing extracted yet: peek inside the verified zip for the bundles.
-        Remove-Dir $StageDir
-        [System.IO.Compression.ZipFile]::ExtractToDirectory($zip, $StageDir)
-        $bundleDir = Join-Path $StageDir 'uniai-gateway/bootstrap'
-    }
-    $embed = Join-Path $bundleDir 'python-3.13.1-embed-amd64.zip'
+    $embed = Join-Path $stageApp 'bootstrap/python-3.13.1-embed-amd64.zip'
     if (-not (Test-Path $embed)) { throw "[uniai] bundled python missing: $embed" }
-    $pyDst = Join-Path $RunDir 'python'
-    Remove-Dir $pyDst
-    [System.IO.Compression.ZipFile]::ExtractToDirectory($embed, $pyDst)
+    Remove-Dir (Join-Path $RunDir 'python')
+    [System.IO.Compression.ZipFile]::ExtractToDirectory($embed, (Join-Path $RunDir 'python'))
 }
-& $pyExe -c 'import sys;print("[uniai] python "+sys.version.split()[0])'
+# A ._pth file replaces sys.path entirely: the program directory must be listed.
+$pth = Get-ChildItem -Path (Join-Path $RunDir 'python') -Filter 'python*._pth' | Select-Object -First 1
+if ($pth) {
+    $lines = @(Get-Content -Path $pth.FullName) | Where-Object { $_ -and $_ -notmatch '^\s*#' }
+    $lines = @($lines | Where-Object { $_ -ne $AppDir }) + @('Lib/site-packages', $AppDir, 'import site')
+    Set-Content -Path $pth.FullName -Value $lines -Encoding ASCII
+}
+# Real check, real exit code - a broken interpreter must stop the install here.
+$checkPy = Join-Path $stageApp 'scripts/python_runtime_check.py'
+if (-not (Test-Path $checkPy)) { throw "[uniai] runtime check helper missing: $checkPy" }
+$check = & $pyExe $checkPy 2>$null
+if ($LASTEXITCODE -ne 0) {
+    throw "[uniai] python runtime check failed (exit $LASTEXITCODE): $check"
+}
+$checkLine = ([string]($check | Select-Object -First 1)).Trim()
+if ($checkLine -notmatch '^PYTHON_RUNTIME_CHECK_PASS') {
+    throw "[uniai] python runtime check did not pass: $checkLine"
+}
+Ok $checkLine
 
 # ------------------------------------------------------------ 4 node runtime
 Say '(4/9) prepare node runtime (bundled, pinned v22.23.3)'
 $nodeExe = Join-Path $RunDir 'node/node.exe'
 if (-not (Test-Path $nodeExe)) {
-    $nodeZip = $null
-    foreach ($candidate in @((Join-Path $StageDir "uniai-gateway/bootstrap/$NodeZipName"),
-                             (Join-Path $AppDir "bootstrap/$NodeZipName"))) {
-        if (Test-Path $candidate) { $nodeZip = $candidate; break }
-    }
-    $downloaded = $false
-    if (-not $nodeZip) {
+    $nodeZip = Join-Path $stageApp "bootstrap/$NodeZipName"
+    if (-not (Test-Path $nodeZip)) {
         $nodeZip = Join-Path $env:TEMP $NodeZipName
         if (-not (Test-Path $nodeZip)) {
-            Say "bundled node missing - downloading pinned $NodeZipName"
             Invoke-WebRequest -Uri "https://nodejs.org/dist/v22.23.3/$NodeZipName" -OutFile $nodeZip -UseBasicParsing
-            $downloaded = $true
         }
     }
     $nodeSha = Get-Sha256 $nodeZip
     if ($nodeSha -ne $NodeSha256.ToLower()) {
         throw "[uniai] node checksum mismatch expected=$($NodeSha256.ToLower()) actual=$nodeSha"
     }
-    Ok "node sha256 $nodeSha$(if ($downloaded) { ' (downloaded)' } else { ' (bundled)' })"
+    Ok "node sha256 $nodeSha"
     $nodeStage = Join-Path $StageDir 'node'
     Remove-Dir $nodeStage
     [System.IO.Compression.ZipFile]::ExtractToDirectory($nodeZip, $nodeStage)
     $inner = Get-ChildItem -Path $nodeStage -Directory | Select-Object -First 1
+    if (-not $inner) { throw '[uniai] node archive did not contain a directory' }
     Remove-Dir (Join-Path $RunDir 'node')
     [System.IO.Directory]::Move($inner.FullName, (Join-Path $RunDir 'node'))
 }
-& $nodeExe --version | ForEach-Object { Say "node $_" }
-if (($env:Path -notlike "*$RunDir\node*")) {
-    [Environment]::SetEnvironmentVariable(
-        'Path', "$RunDir\node;" + [Environment]::GetEnvironmentVariable('Path', 'User'), 'User')
+$nodeVersion = (& $nodeExe '--version' 2>$null | Select-Object -First 1)
+Say "node $nodeVersion"
+if ($env:Path -notlike "*$RunDir\node*") {
+    [Environment]::SetEnvironmentVariable('Path',
+        "$RunDir\node;" + [Environment]::GetEnvironmentVariable('Path', 'User'), 'User')
 }
 
-# -------------------------------------------------------------- 5 swap app
+# --------------------------------------------------------------- 5 swap app
 Say '(5/9) install program into app/ (data untouched)'
-Stop-Gateway
+# Only ever stop a UniAI process of this installation: never a foreign owner.
+$owner = Get-NetTCPConnection -LocalPort $effectivePort -State Listen -ErrorAction SilentlyContinue |
+         Select-Object -First 1
+if ($owner) {
+    $proc = Get-Process -Id $owner.OwningProcess -ErrorAction SilentlyContinue
+    $mine = $false
+    if ($proc) {
+        try { $mine = ($proc.Path -like "$root*") -or ($proc.ProcessName -match '^uniai') } catch { $mine = $false }
+    }
+    if ($mine) {
+        Stop-Process -Id $owner.OwningProcess -Force -ErrorAction SilentlyContinue
+        Say "stopped previous UniAI pid=$($owner.OwningProcess)"
+        # The supervisor would otherwise start the replaced program again.
+        $alsoKilled = @(Stop-OwnProcesses $root)
+        if ($alsoKilled.Count -gt 0) { Say "also stopped: $($alsoKilled -join ', ')" }
+        for ($i = 0; $i -lt 30; $i++) {
+            $still = Get-NetTCPConnection -LocalPort $effectivePort -State Listen -ErrorAction SilentlyContinue
+            if (-not $still) { break }
+            Start-Sleep -Seconds 1
+        }
+    }
+    else {
+        throw "[uniai] port $effectivePort is used by another program (pid=$($owner.OwningProcess)); not touching it"
+    }
+}
 Remove-Dir $PrevDir
 if (Test-Path $AppDir) {
     Move-DirReplace $AppDir $PrevDir
     Say 'previous program moved to app.previous'
 }
-# Reuse the staging tree when the bootstrap step already unpacked the zip.
-if (-not (Test-Path (Join-Path $StageDir 'uniai-gateway/VERSION'))) {
-    Remove-Dir $StageDir
-    [System.IO.Compression.ZipFile]::ExtractToDirectory($zip, $StageDir)
-}
 try {
-    $src = Join-Path $StageDir 'uniai-gateway'
-    if (-not (Test-Path (Join-Path $src 'VERSION'))) { throw '[uniai] package layout unexpected' }
+    Move-DirNew $stageApp $AppDir
     if ($FailAt -eq 'extract') { throw '[uniai] self-test: forced failure after extract' }
-    Move-DirNew $src $AppDir
-    Remove-Dir $StageDir
 
-    # A ._pth file replaces sys.path entirely: the application root must be
-    # listed explicitly or `python -m runtime.child` cannot find the package.
-    $pth = Get-ChildItem -Path (Join-Path $RunDir 'python') -Filter 'python*._pth' |
-           Select-Object -First 1
-    if ($pth) {
-        $lines = @(Get-Content -Path $pth.FullName) | Where-Object { $_ -and $_ -notmatch '^\s*#' }
-        $lines = @($lines | Where-Object { $_ -ne $AppDir }) +
-                 @('Lib/site-packages', $AppDir, 'import site')
-        Set-Content -Path $pth.FullName -Value $lines -Encoding ASCII
+    $pth2 = Get-ChildItem -Path (Join-Path $RunDir 'python') -Filter 'python*._pth' | Select-Object -First 1
+    if ($pth2) {
+        $lines2 = @(Get-Content -Path $pth2.FullName) | Where-Object { $_ -and $_ -notmatch '^\s*#' }
+        $lines2 = @($lines2 | Where-Object { $_ -ne $AppDir }) + @('Lib/site-packages', $AppDir, 'import site')
+        Set-Content -Path $pth2.FullName -Value $lines2 -Encoding ASCII
     }
+    $check2 = & $pyExe (Join-Path $AppDir 'scripts/python_runtime_check.py') 2>$null
+    if ($LASTEXITCODE -ne 0) { throw "[uniai] python runtime check failed after install (exit $LASTEXITCODE)" }
 
     # -------------------------------------------------------- 6 dependencies
     Say '(6/9) install locked dependencies (offline wheels)'
-    $pipWheel = Get-ChildItem -Path (Join-Path $AppDir 'bootstrap') -Filter 'pip-*.whl' |
-                Select-Object -First 1
-    & $pyExe -c 'import fastapi, httpx, alembic' 2>$null
+    & $pyExe (Join-Path $AppDir 'scripts/python_runtime_check.py') '--deps' 2>$null
     if ($LASTEXITCODE -ne 0) {
-        $pipArgs = @('install', '--no-index', '--find-links', (Join-Path $AppDir 'wheels'),
-                     '-r', (Join-Path $AppDir 'requirements.lock.txt'),
-                     '--disable-pip-version-check', '--no-warn-script-location', '-q')
-        & $pyExe -c "import sys;sys.path.insert(0,r'$($pipWheel.FullName)');from pip._internal.cli.main import main;sys.exit(main(sys.argv[1:]))" @pipArgs 2>$null
+        $pipWheel = Get-ChildItem -Path (Join-Path $AppDir 'bootstrap') -Filter 'pip-*.whl' |
+                    Select-Object -First 1
+        if (-not $pipWheel) { throw '[uniai] pip wheel missing from the release package' }
+        & $pyExe (Join-Path $AppDir 'scripts/pip_bootstrap.py') $pipWheel.FullName '--' `
+            'install' '--no-index' '--find-links' (Join-Path $AppDir 'wheels') `
+            '-r' (Join-Path $AppDir 'requirements.lock.txt') '--disable-pip-version-check' `
+            '--no-warn-script-location' '-q' 2>$null
         if ($LASTEXITCODE -ne 0) { throw "[uniai] dependency install failed (exit $LASTEXITCODE)" }
+        & $pyExe (Join-Path $AppDir 'scripts/python_runtime_check.py') '--deps' 2>$null
+        if ($LASTEXITCODE -ne 0) { throw '[uniai] dependencies still missing after install' }
     }
+    Ok 'dependencies present'
     if ($FailAt -eq 'deps') { throw '[uniai] self-test: forced failure after dependencies' }
 
     # ------------------------------------------------------------ 7 migrate
     Say '(7/9) apply database migrations (existing data preserved)'
+    $env:UNIAI_HOME = $root
     $env:UNIAI_DATA_DIR = $DataDir
-    $env:UNIAI_PORT = "$Port"
-    Push-Location $AppDir
-    & $pyExe -m alembic upgrade head 2>$null
+    $env:UNIAI_PORT = "$effectivePort"
+    $env:UNIAI_RUNTIME_DIR = $RunDir
+    # A database that already owns the schema is stamped, never rebuilt: an
+    # upgrade must not try to CREATE TABLE over tables that hold user data.
+    $migratePy = Join-Path $AppDir 'scripts/migrate_database.py'
+    $migration = & $pyExe $migratePy 2>$null
     $migCode = $LASTEXITCODE
-    Pop-Location
-    if ($migCode -ne 0) { throw "[uniai] database migration failed (exit $migCode)" }
+    $migLine = ([string]($migration | Select-Object -First 1)).Trim()
+    if ($migCode -ne 0 -or $migLine -notmatch '^DB_MIGRATE_PASS') {
+        throw "[uniai] database migration failed (exit $migCode): $migLine"
+    }
+    Ok $migLine
     if ($FailAt -eq 'migrate') { throw '[uniai] self-test: forced failure after migration' }
 
     # -------------------------------------------------------------- 8 start
     Say '(8/9) start UniAI'
-    $healthy = Start-Gateway $AppDir
-    if (-not $healthy) { throw "[uniai] gateway did not answer /health on port $Port" }
+    $env:UNIAI_HOME = $root
+    $env:UNIAI_DATA_DIR = $DataDir
+    $env:UNIAI_PORT = "$effectivePort"
+    $env:UNIAI_RUNTIME_DIR = $RunDir
+    $env:UNIAI_ROUTING_PAID_ENABLED = '0'
+    $env:UNIAI_QODER_NODE = $nodeExe
+    Start-Process -FilePath $pyExe -WorkingDirectory $AppDir -WindowStyle Hidden `
+        -ArgumentList @('-m', 'runtime.child', '--host', '127.0.0.1', '--port', "$effectivePort") | Out-Null
+    $healthy = $false
+    for ($i = 0; $i -lt 90; $i++) {
+        Start-Sleep -Seconds 1
+        try {
+            Invoke-RestMethod -Uri "http://127.0.0.1:$effectivePort/health" -TimeoutSec 3 | Out-Null
+            $healthy = $true
+            break
+        }
+        catch { }
+    }
+    if (-not $healthy) { throw "[uniai] gateway did not answer /health on port $effectivePort" }
     if ($FailAt -eq 'health') { throw '[uniai] self-test: forced failure after health check' }
-    Ok "gateway healthy http://127.0.0.1:$Port"
+    $ownerAfter = Get-NetTCPConnection -LocalPort $effectivePort -State Listen -ErrorAction SilentlyContinue |
+                  Select-Object -First 1
+    if ($ownerAfter) {
+        $procAfter = Get-Process -Id $ownerAfter.OwningProcess -ErrorAction SilentlyContinue
+        if ($procAfter) {
+            $exeAfter = ''
+            try { $exeAfter = [string]$procAfter.Path } catch { $exeAfter = '' }
+            Say "port $effectivePort served by pid=$($ownerAfter.OwningProcess) $exeAfter"
+            if ($exeAfter -and -not $exeAfter.StartsWith($root, [System.StringComparison]::OrdinalIgnoreCase)) {
+                throw "[uniai] port $effectivePort is served by a program outside this installation: $exeAfter"
+            }
+        }
+    }
+    Ok "gateway healthy http://127.0.0.1:$effectivePort"
 }
 catch {
     Write-Host "[uniai] ERROR: $($_.Exception.Message)" -ForegroundColor Red
     Remove-Dir $StageDir
-    if (Test-Path $PrevDir) { Restore-Previous }
-    else { Write-Host '[uniai] no previous version to restore' -ForegroundColor Yellow }
+    $stoppedForRollback = @(Stop-OwnProcesses $root)
+    if ($stoppedForRollback.Count -gt 0) { Say "rollback: stopped $($stoppedForRollback -join ', ')" }
+    $env:UNIAI_HOME = $root
+    $env:UNIAI_DATA_DIR = $DataDir
+    $env:UNIAI_RUNTIME_DIR = $RunDir
+    if (Test-Path $PrevDir) {
+        Say 'ROLLBACK: restoring previous program directory'
+        Remove-Dir $AppDir
+        Move-DirReplace $PrevDir $AppDir
+        Ok 'ROLLBACK_RESTORED app.previous -> app'
+        Start-Process -FilePath $pyExe -WorkingDirectory $AppDir -WindowStyle Hidden `
+            -ArgumentList @('-m', 'runtime.child', '--host', '127.0.0.1', '--port', "$effectivePort") | Out-Null
+    }
+    elseif ($legacyExe -and (Test-Path $legacyExe)) {
+        Say "ROLLBACK: restarting the previous program ($legacyExe)"
+        Start-Process -FilePath $legacyExe -WorkingDirectory $root -WindowStyle Hidden | Out-Null
+    }
+    else { Warn 'no previous version to restore' }
+    $back = $false
+    for ($i = 0; $i -lt 60; $i++) {
+        Start-Sleep -Seconds 1
+        try {
+            Invoke-RestMethod -Uri "http://127.0.0.1:$effectivePort/health" -TimeoutSec 3 | Out-Null
+            $back = $true
+            break
+        }
+        catch { }
+    }
+    if ($back) { Ok 'ROLLBACK_HEALTH_OK previous version serves /health again' }
+    else { Warn 'ROLLBACK_HEALTH_FAIL previous version did not answer /health' }
     throw $_.Exception.Message
 }
+Remove-Dir $StageDir
 if (Test-Path $PrevDir) { Remove-Dir $PrevDir }
 
-# ------------------------------------------------------------ 9 first use
-Say '(9/9) detect Qoder and ZCode'
-$headers = @{ 'Origin' = "http://127.0.0.1:$Port" }
-$adminKey = $null
-$tokenFile = Join-Path $DataDir 'run/bootstrap.token'
-for ($i = 0; $i -lt 30 -and -not (Test-Path $tokenFile); $i++) { Start-Sleep -Seconds 1 }
-$bootstrapState = $null
-try {
-    $bootstrapState = Invoke-RestMethod -Uri "http://127.0.0.1:$Port/api/bootstrap" -Headers $headers -TimeoutSec 15
-}
-catch { }
-if (Test-Path $tokenFile -and $bootstrapState -and -not $bootstrapState.initialized) {
-    try {
-        $material = Get-Content -Path $tokenFile -Raw | ConvertFrom-Json
-        $claimHeaders = @{ 'Origin' = "http://127.0.0.1:$Port"; 'Content-Type' = 'application/json' }
-        $claimed = Invoke-RestMethod -Method Post -Uri "http://127.0.0.1:$Port/api/bootstrap" `
-                                     -Headers $claimHeaders `
-                                     -Body (@{ bootstrap_token = $material.token } | ConvertTo-Json)
-        $adminKey = $claimed.console_key
+# --------------------------------------------------------------- 9 finishing
+Say '(9/9) register launcher and open the console'
+$env:UNIAI_HOME = $root
+$env:UNIAI_DATA_DIR = $DataDir
+$env:UNIAI_RUNTIME_DIR = $RunDir
+
+# only now that the replacement answers /health is the old program archived
+$legacyNames = @()
+if ($homeInfo.legacy_program) { $legacyNames = @($homeInfo.legacy_program) }
+if ($legacyNames.Count -gt 0) {
+    $backupDir = Join-Path $root "legacy-program-backup-$($script:Stamp)"
+    New-Item -ItemType Directory -Force -Path $backupDir | Out-Null
+    $moved = 0
+    foreach ($name in $legacyNames) {
+        $src = Join-Path $root $name
+        if ((Test-Path $src) -and (Move-ItemQuiet $src (Join-Path $backupDir $name))) { $moved++ }
     }
-    catch { Say "admin claim: $($_.Exception.Message)" }
-}
-if (-not $adminKey) { Say 'no new admin key claimed (browser session will)' }
-else { $headers['Authorization'] = "Bearer $adminKey" }
-
-# Every user-facing entry point comes from one helper: the gateway already
-# knows its port, and it refuses to answer unless the service is healthy.
-$consoleUrl = $null
-$openScript = Join-Path $AppDir 'scripts/console_url.py'
-for ($i = 0; $i -lt 10 -and -not $consoleUrl; $i++) {
-    $raw = & $pyExe $openScript "$Port" 2>$null
-    if ($LASTEXITCODE -eq 0 -and $raw) { $consoleUrl = ([string]$raw).Trim() }
-    else { Start-Sleep -Seconds 2 }
-}
-if (-not $consoleUrl) {
-    # Fall back to the local helper so the user still gets the right URL even
-    # if the packaged helper cannot resolve the port from here.
-    $consoleUrl = "http://127.0.0.1:$Port/console/#/"
-}
-if ($healthy) {
-    if ($consoleUrl) { Start-Process $consoleUrl | Out-Null; Ok "console opened: $consoleUrl" }
-}
-else {
-    Warn 'UniAI installed, but the service did not answer /health - start UniAI and open the console again.'
-}
-Say "console url: $consoleUrl"
-
-$state = $null
-if ($adminKey) {
-    try { $state = Invoke-RestMethod -Uri "http://127.0.0.1:$Port/api/setup/state" -Headers $headers -TimeoutSec 20 }
-    catch { Say "setup state: $($_.Exception.Message)" }
+    if ($moved -gt 0) { Ok "LEGACY_PROGRAM_BACKUP $moved/$($legacyNames.Count) item(s) archived to $backupDir" }
+    else { Warn 'legacy program files still in place (locked?) - installation is unaffected' }
 }
 
-if (-not $SkipQoder -and $adminKey -and $state) {
-    if ($state.qoder.cli_installed -and $state.qoder.logged_in) {
-        Ok 'Qoder already connected (existing login preserved)'
+# install.json describes the installation; the previous copy is kept.
+$installJsonPath = Join-Path $root 'install.json'
+if (Test-Path $installJsonPath) {
+    $bakDir = Join-Path $DataDir 'backups'
+    if (-not (Test-Path $bakDir)) { New-Item -ItemType Directory -Force -Path $bakDir | Out-Null }
+    Copy-Item -LiteralPath $installJsonPath -Destination (Join-Path $bakDir "install.json.bak-$($script:Stamp)") -Force
+}
+& $pyExe (Join-Path $AppDir 'scripts/uniai_home.py') '--write-install' $ProductVersion 2>$null | Out-Null
+Ok "install.json updated to $ProductVersion (previous copy kept in data/backups)"
+
+$durable = Set-DurableStart $root $AppDir $pyExe $effectivePort
+Ok "AUTOSTART_RETARGETED $durable"
+
+$proto = & $pyExe (Join-Path $AppDir 'scripts/register_protocol.py') '--root' $root 2>$null
+$protoLine = ([string]($proto | Select-Object -First 1)).Trim()
+if ($protoLine) { Ok "protocol registered: $protoLine" }
+$verify = & $pyExe (Join-Path $AppDir 'scripts/register_protocol.py') '--verify' 2>$null
+$verifyLine = ([string]($verify | Select-Object -First 1)).Trim()
+if ($verifyLine) { Say "protocol verify: $verifyLine" }
+
+# one installation only: a second root must not keep claiming to be one
+$duplicateRoots = @()
+if ($homeInfo.others) { $duplicateRoots = @($homeInfo.others) }
+$retired = 0
+foreach ($other in $duplicateRoots) {
+    $otherRoot = $other.root
+    if (-not $otherRoot) { continue }
+    if ($otherRoot -eq $root) { continue }
+    if ($other.has_install_json) {
+        $src = Join-Path $otherRoot 'install.json'
+        $dst = "$src.duplicate-$($script:Stamp)"
+        if ((Test-Path $src) -and (Move-ItemQuiet $src $dst)) {
+            Say "duplicate root retired (install.json renamed, data kept): $otherRoot"
+            $retired++
+        }
+    }
+    if ($other.has_app) {
+        $src = Join-Path $otherRoot 'app'
+        $dst = "$src.duplicate-$($script:Stamp)"
+        if ((Test-Path $src) -and (Move-ItemQuiet $src $dst)) {
+            Say "duplicate root program directory renamed (data kept): $otherRoot\app"
+            $retired++
+        }
+    }
+}
+if ($retired -gt 0) { Ok "CANONICAL_ROOT_UNIQUE $retired duplicate item(s) retired, no user data touched" }
+else { Ok 'CANONICAL_ROOT_UNIQUE only one install root claims this product' }
+
+if (-not $NoOpen) {
+    $openUrl = $null
+    for ($i = 0; $i -lt 10 -and -not $openUrl; $i++) {
+        $raw = & $pyExe (Join-Path $AppDir 'scripts/console_url.py') "$effectivePort" '--ensure-material' 2>$null
+        if ($LASTEXITCODE -eq 0 -and $raw) { $openUrl = ([string]$raw).Trim() }
+        else { Start-Sleep -Seconds 2 }
+    }
+    if ($openUrl) {
+        # Never echo the URL: it carries the one-time bootstrap material.
+        Start-Process $openUrl | Out-Null
+        Ok 'console opened through the launcher (bootstrap material attached)'
     }
     else {
-        Warn 'ACTION REQUIRED: finish the Qoder sign-in in your browser.'
-        Say 'the console wizard starts the official OAuth page with one click'
+        Warn 'installed, but the console link could not be created - run Open-Console.cmd'
     }
 }
 
-if (-not $SkipZCode -and $state -and $state.zcode -and -not $state.zcode.installed) {
-    Warn 'ZCode not detected on this PC - UniAI install still succeeded'
-    Say 'install ZCode, then press "re-detect" in the console'
-}
+$bindingErrors = @(Get-BindingErrors)
+if ($bindingErrors.Count -eq 0) { Ok 'INSTALL_POWERSHELL_NO_ERROR_PASS (no ParameterBindingException in this run)' }
+else { Warn "INSTALL_POWERSHELL_NO_ERROR_FAIL $($bindingErrors.Count) binding error(s) logged" }
 
-if ($hadInstall) {
-    $dbCount = @(Get-ChildItem -Path $DataDir -Filter '*.db' -File -ErrorAction SilentlyContinue).Count
-    $checks = @{
-        health          = $healthy
-        data_present    = ($dbCount -gt 0)
-        identity_kept   = [bool]($bootstrapState -and $bootstrapState.initialized)
-    }
-    $failed = @($checks.Keys | Where-Object { -not $checks[$_] })
-    Say "reinstall checks: health=$($checks.health) data=$($checks.data_present) identity_kept=$($checks.identity_kept)"
-    if ($failed.Count -eq 0) { Ok 'REINSTALL_IDEMPOTENT_PASS' }
-    else { Warn "REINSTALL_IDEMPOTENT_FAIL: $($failed -join ', ')" }
-}
+if ($hadInstall -or $homeInfo.has_data) { Ok 'REINSTALL_IDEMPOTENT_PASS (data and keys untouched)' }
 
 Write-Host ''
 Write-Host '================ UniAI Gateway install summary ================' -ForegroundColor Green
 Write-Host " version      : $ProductVersion"
+Write-Host " install root : $root"
 Write-Host " program      : $AppDir"
 Write-Host " data         : $DataDir  (never deleted by install/upgrade)"
 Write-Host " runtime      : $RunDir   (python / node / qoder CLI)"
-Write-Host " gateway      : http://127.0.0.1:$Port"
-Write-Host " open         : $consoleUrl"
+Write-Host " gateway      : http://127.0.0.1:$effectivePort"
+Write-Host " launcher     : uniai://console -> Open-Console.ps1"
 Write-Host " paid_enabled : false  (no extra cost by default)"
 Write-Host '===============================================================' -ForegroundColor Green

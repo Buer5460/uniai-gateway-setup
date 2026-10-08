@@ -57,7 +57,7 @@ textarea{width:100%;min-height:64px;font-family:ui-monospace,Consolas,monospace;
 </head>
 <body>
 <main class="wrap">
-<nav class="topbar"><span class="brand"><span class="mark">U</span>UniAI Gateway</span><span class="badge">1.0.0-rc3 · Windows</span></nav>
+<nav class="topbar"><span class="brand"><span class="mark">U</span>UniAI Gateway</span><span class="badge">1.0.0-rc4 · Windows</span></nav>
 
 <header>
 <h1>把你已有的AI免费权益统一给ZCode使用</h1>
@@ -80,7 +80,7 @@ textarea{width:100%;min-height:64px;font-family:ui-monospace,Consolas,monospace;
 <div class="card">
 <h3>或者手动安装</h3>
 <p>下载 Windows 版压缩包，解压后双击里面的 <code>install.ps1</code>，效果与上面完全相同。</p>
-<a class="btn outline" href="https://github.com/Buer5460/uniai-gateway-setup/releases/download/v1.0.0-rc3/uniai-gateway-1.0.0-rc3-windows-x64.zip">下载 Windows 版</a>
+<a class="btn outline" href="https://github.com/Buer5460/uniai-gateway-setup/releases/download/v1.0.0-rc4/uniai-gateway-1.0.0-rc4-windows-x64.zip">下载 Windows 版</a>
 <p class="meta">66.9 MB · Windows 64 位 · 自带 Node 与 Python，SHA-256 见页面底部</p>
 <p class="meta">已经装过也能再跑一次：先备份旧程序再替换，数据与 ZCode 配置保持不动。</p>
 </div>
@@ -88,8 +88,8 @@ textarea{width:100%;min-height:64px;font-family:ui-monospace,Consolas,monospace;
 <div class="card">
 <h3>已经装过了？</h3>
 <p>直接打开本机的 UniAI，不用重新安装。</p>
-<a class="btn outline" id="open-app" href="http://127.0.0.1:8935/console/#/">已安装？打开 UniAI</a>
-<p class="meta">如果打不开，请先安装或启动 UniAI（双击桌面 Start-UniAI），再点这个按钮。</p>
+<a class="btn outline" id="open-app" href="uniai://console">已安装？打开 UniAI</a>
+<p class="meta">这个按钮调用的是安装时注册的本机入口 <code>uniai://console</code>：它会先检查服务、必要时启动，再打开控制台。如果浏览器提示无法打开，请重新运行一次上面的安装命令。</p>
 <p class="status" id="open-status" role="status" aria-live="polite"></p>
 </div>
 </section>
@@ -128,9 +128,9 @@ textarea{width:100%;min-height:64px;font-family:ui-monospace,Consolas,monospace;
 </details>
 <details>
 <summary>版本与文件校验</summary>
-<p>当前版本 <code>1.0.0-rc3</code>（rc1 / rc2 均保留可回滚），仅供本人本机使用，安装包未签名。SHA-256 用于确认下载文件与发布文件一致，不代替发布者签名：</p>
-<p><code>2728e9d407f8975765299eadcd614117e957656b79413325a17ea5cb332c2776</code></p>
-<p>文件大小 70,144,851 字节（含自带 Node v22.23.3）。<a href="https://github.com/Buer5460/uniai-gateway-setup/releases/tag/v1.0.0-rc3">版本下载</a> · <a href="https://github.com/Buer5460/uniai-gateway-setup/releases/tag/v1.0.0-rc2">上一版 rc2</a> · <a href="https://github.com/Buer5460/uniai-gateway-setup/releases/tag/v1.0.0-rc1">rc1</a> · <a href="https://github.com/Buer5460/uniai-gateway-setup/blob/main/UNINSTALL.md">卸载说明</a></p>
+<p>当前版本 <code>1.0.0-rc4</code>（rc1 / rc2 / rc3 均保留可回滚），仅供本人本机使用，安装包未签名。SHA-256 用于确认下载文件与发布文件一致，不代替发布者签名：</p>
+<p><code>99a511f8aba6361ab0e0126ea4f20c839d3e79dd323a3fe80ca7aaf2fdfbb7cd</code></p>
+<p>文件大小 70,163,329 字节（含自带 Node v22.23.3）。<a href="https://github.com/Buer5460/uniai-gateway-setup/releases/tag/v1.0.0-rc4">版本下载</a> · <a href="https://github.com/Buer5460/uniai-gateway-setup/releases/tag/v1.0.0-rc3">上一版 rc3</a> · <a href="https://github.com/Buer5460/uniai-gateway-setup/releases/tag/v1.0.0-rc2">rc2</a> · <a href="https://github.com/Buer5460/uniai-gateway-setup/releases/tag/v1.0.0-rc1">rc1</a> · <a href="https://github.com/Buer5460/uniai-gateway-setup/blob/main/UNINSTALL.md">卸载说明</a></p>
 </details>
 </section>
 
@@ -154,20 +154,18 @@ btn.addEventListener('click', async function () {
   }
 });
 
-// "打开 UniAI" 必须永远指向控制台本体：http://127.0.0.1:<端口>/console/#/
-// RC2 指向 /setup（只是前端路由），网关返回 JSON 404，用户看到了错误而不是界面。
-// 点击后先在后台探活，未运行就给中文提示，而不是让用户对着一个 404 页面。
+// "打开 UniAI" 不再指向 http://127.0.0.1:<端口>/console/#/ 这样的裸链接。
+// RC3 就是这样做的：链接绕过了本机启动器，控制台拿不到一次性材料，
+// 端口不对时还会直接打不开。现在按钮只调用安装器注册的本机入口
+// uniai://console，由启动器负责探活、拉起服务、携带材料并打开控制台。
 var openButton = document.getElementById('open-app');
 var openStatus = document.getElementById('open-status');
 
 openButton.addEventListener('click', function () {
-  // The href is correct, so the browser either opens the console or shows its
-  // own "cannot connect" page - never a JSON 404. We only add a friendly hint
-  // and keep navigating so nothing depends on cross-origin probing.
-  openStatus.textContent = '正在打开本机 UniAI…如果打不开，请先安装或启动 UniAI（桌面上的 Start-UniAI）。';
+  openStatus.textContent = '正在调用本机 UniAI 入口…启动器会先检查服务、需要时启动，然后打开控制台。';
   window.setTimeout(function () {
-    openStatus.textContent = 'UniAI 暂未启动。请先安装，或双击桌面上的 Start-UniAI，再点这里重试。';
-  }, 3000);
+    openStatus.textContent = '如果没有弹出 UniAI，说明本机入口还没注册：请重新运行上面的安装命令一次，然后再点这里。';
+  }, 4000);
 });
 </script>
 </body>
