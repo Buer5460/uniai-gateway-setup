@@ -1,22 +1,61 @@
-# 卸载
+# 卸载与回滚（1.0.0-rc1）
 
-三种方式，任选其一：
+## 一、卸载 UniAI Gateway
 
-1. Windows 设置 → 应用 → 已安装的应用 → 搜索 **UniAI Gateway** → 卸载
-2. 开始菜单 → **UniAI Gateway** → 卸载入口
-3. 命令行（PowerShell）：
+安装位置：`%LOCALAPPDATA%\UniAI\uniai-gateway`
 
-```powershell
-& "$env:LOCALAPPDATA\UniAI Gateway\uninstall.exe" --uninstall
+1. 停止服务：在任务管理器结束 `python.exe`（命令行含 `runtime.child`），
+   或在安装目录执行：
+
+   ```powershell
+   & "$env:LOCALAPPDATA\UniAI\uniai-gateway\runtime\python\python.exe" -m runtime.service stop
+   ```
+
+2. 删除安装目录：
+
+   ```powershell
+   Remove-Item "$env:LOCALAPPDATA\UniAI\uniai-gateway" -Recurse -Force
+   ```
+
+3. （可选）删除本机数据目录（密钥、用量、日志）：
+
+   ```powershell
+   Remove-Item "$env:LOCALAPPDATA\UniAI\uniai-gateway\data" -Recurse -Force
+   ```
+
+4. （可选）若安装器曾为本机补充 Node，会从用户 PATH 中移除：
+   设置 → 系统 → 高级系统设置 → 环境变量 → 用户变量 `Path`
+   → 删除含 `UniAI\uniai-gateway\runtime\node` 的条目。
+
+卸载不会改动你的 Qoder 账号、Qoder 登录态，也不会删除你的项目文件。
+
+## 二、回滚 ZCode 配置（把 ZCode 恢复成接入前的样子）
+
+自动配置 ZCode 前，UniAI 会把原配置复制为：
+
+```
+%USERPROFILE%\.zcode\v2\provider_config.json.uniai-backup-<年月日-时分秒>
 ```
 
-参数：
+恢复方法：删掉当前的 `provider_config.json`，把备份文件改回原名即可：
 
-| 参数 | 作用 |
+```powershell
+cd "$env:USERPROFILE\.zcode\v2"
+$backup = Get-ChildItem provider_config.json.uniai-backup-* | Sort-Object Name | Select-Object -Last 1
+Remove-Item provider_config.json
+Copy-Item $backup.FullName provider_config.json
+```
+
+## 三、回滚版本
+
+| 目标 | 做法 |
 | --- | --- |
-| `--uninstall` | 执行卸载 |
-| `--yes` | 不弹确认框 |
-| `--purge-data` | 连同本机数据（密钥、用量、模型目录）一并删除；不带此参数默认保留，便于重装后直接继续用 |
+| 回到 V1 功能收口版本 | `git checkout uniai-entitlement-v1-pass`（commit `b8a271b`） |
+| 回到 Qoder 冻结版本 | `git checkout uniai-qoder-entitlement-pass`（commit `d5d88ae`） |
+| 只是关掉额外付费 | 控制台首页「禁止额外付费」开关保持开启即可，无需换版本 |
 
-卸载会移除：程序文件、桌面 / 开始菜单 / 开机自启入口、`uniai://` 协议注册、卸载注册表项。
-卸载程序会自行收尾删除最后一个文件，偶尔会残留一个 `uninstall.exe`，手动删除即可。
+## 四、回滚后如何确认
+
+- UniAI 控制台「我的 AI 权益」中，Qoder 显示已连接且余额可读；
+- ZCode 能正常对话；
+- 「禁止额外付费」开关为开启状态（此时 `paid_enabled=false`）。
